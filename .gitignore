@@ -1,0 +1,71 @@
+# ============================================================
+#  PharmaCare Pro — .gitignore
+# ============================================================
+
+# --- Python Virtual Environment ---
+venv/
+env/
+.venv/
+ENV/
+
+# --- Python Cache ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# --- Flask / Instance Folder ---
+instance/
+*.cfg
+
+# --- Database (SQLite legacy — not used, kept safe) ---
+*.db
+*.db-shm
+*.db-wal
+
+# --- Environment Variables & Secrets (NEVER commit these!) ---
+.env
+.env.local
+.env.*.local
+secrets.py
+
+# --- Migration / Local state data (contains real pharmacy data — never push) ---
+state.json
+
+# --- Logs ---
+*.log
+logs/
+
+# --- OS & Editor Files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Node (if you ever add frontend tooling) ---
+node_modules/
+npm-debug.log*
+
+# --- Distribution / Build ---
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# --- Pytest / Coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ============================================================
+#  ✅  med_query__1_.xlsx  is intentionally NOT ignored here.
+#     It must be committed to GitHub so Render can find it
+#     at startup and seed medicines for all new users.
+#
+#  ❌  state.json IS ignored — it holds your local/migrated
+#     pharmacy data and should never go to GitHub.
+# ============================================================
