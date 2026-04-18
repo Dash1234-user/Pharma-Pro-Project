@@ -3843,7 +3843,7 @@ function togglePharmacyTypeFields() {
   const wFields = document.getElementById('wholesale-fields');
   const rFields = document.getElementById('retail-fields');
   const isWholesale = type === 'Wholesale Pharma';
-  const isRetail = ['Retail Pharmacy', 'Hospital Pharmacy', 'Medical Store', 'Ayurvedic Store'].includes(type);
+  const isRetail = ['Retail Pharma', 'Retail Pharmacy', 'Hospital Pharmacy', 'Medical Store', 'Ayurvedic Store'].includes(type);
   if (wFields) wFields.classList.toggle('hidden', !isWholesale);
   if (rFields) rFields.classList.toggle('hidden', !isRetail);
   // Show only the relevant QR upload block
@@ -3888,7 +3888,7 @@ function checkPharmacyTypeCredit() {
   const navLink = document.getElementById('nav-credit-link');
   if (!navLink) return;
   const isWholesale = type === 'Wholesale Pharma';
-  const isRetail    = ['Retail Pharmacy', 'Hospital Pharmacy', 'Medical Store', 'Ayurvedic Store'].includes(type);
+  const isRetail    = ['Retail Pharma', 'Retail Pharmacy', 'Hospital Pharmacy', 'Medical Store', 'Ayurvedic Store'].includes(type);
 
   if (isWholesale || isRetail) {
     navLink.classList.remove('hidden');
