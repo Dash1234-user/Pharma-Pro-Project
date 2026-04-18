@@ -132,7 +132,7 @@ def serve_static(filename):
 # PARTITION CONSTANTS & HELPERS
 # ─────────────────────────────────────────────────────────────
 WHOLESALE_TYPE  = 'Wholesale Pharma'
-RETAIL_TYPES    = {'Retail Pharmacy', 'Hospital Pharmacy', 'Medical Store', 'Ayurvedic Store'}
+RETAIL_TYPES    = {'Retail Pharma', 'Retail Pharmacy', 'Hospital Pharmacy', 'Medical Store', 'Ayurvedic Store'}
 PARTITION_BOTH  = 'both'
 PARTITION_WS    = 'wholesale'
 PARTITION_RT    = 'retail'
@@ -437,6 +437,14 @@ def init_db():
         ("bill_items",       "selling_price_per_box FLOAT DEFAULT 0"),
         ("bill_items",       "strips_per_box INTEGER DEFAULT 10"),
         ("bill_items",       "pieces_per_strip INTEGER DEFAULT 10"),
+        # Settings columns — idempotent safety net for any DB upgraded from older schema
+        ("settings",         "wholesale_upi_qr TEXT DEFAULT ''"),
+        ("settings",         "retail_upi_qr TEXT DEFAULT ''"),
+        ("settings",         "wholesaler_id TEXT DEFAULT ''"),
+        ("settings",         "shop_name TEXT DEFAULT ''"),
+        ("settings",         "retailer_owner TEXT DEFAULT ''"),
+        ("settings",         "wholesaler TEXT DEFAULT ''"),
+        ("settings",         "owner_name TEXT DEFAULT ''"),
     ]
     for table, col_def in pg_migrations:
         col_name = col_def.split()[0]
