@@ -65,7 +65,4 @@ htmlcov/
 #  ✅  med_query__1_.xlsx  is intentionally NOT ignored here.
 #     It must be committed to GitHub so Render can find it
 #     at startup and seed medicines for all new users.
-#
-#  ❌  state.json IS ignored — it holds your local/migrated
-#     pharmacy data and should never go to GitHub.
 # ============================================================
