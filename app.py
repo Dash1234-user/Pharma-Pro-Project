@@ -2225,6 +2225,45 @@ def delete_credit(credit_id):
     return jsonify({"ok": True})
 
 
+@app.route('/api/credits/summary', methods=['GET'])
+@jwt_required()
+def get_credits_summary():
+    """
+    Returns aggregated totals for wholesale credits:
+      - totalAmount   : sum of all credit amounts
+      - pendingAmount : sum where status = 'Pending'
+      - clearedAmount : sum where status = 'Cleared'
+      - totalCount    : total records
+      - pendingCount  : pending records count
+      - clearedCount  : cleared records count
+
+    Replaces updateCreditSummary() calculation in app.js.
+    """
+    identity = _get_identity()
+    user_id  = identity['user_id']
+    conn     = get_db()
+
+    rows = conn.execute(
+        "SELECT amount, status FROM credits "
+        "WHERE user_id=%s AND partition IN ('wholesale', 'both')",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+
+    total_amt   = round(sum(r["amount"] for r in rows), 2)
+    pending_amt = round(sum(r["amount"] for r in rows if r["status"] == "Pending"), 2)
+    cleared_amt = round(sum(r["amount"] for r in rows if r["status"] == "Cleared"), 2)
+
+    return jsonify({
+        "totalAmount":   total_amt,
+        "pendingAmount": pending_amt,
+        "clearedAmount": cleared_amt,
+        "totalCount":    len(rows),
+        "pendingCount":  sum(1 for r in rows if r["status"] == "Pending"),
+        "clearedCount":  sum(1 for r in rows if r["status"] == "Cleared"),
+    })
+
+
 # ─────────────────────────────────────────────────────────────
 # CREDIT DB — RETAIL shop_credits (partition='retail'|'both')
 # ─────────────────────────────────────────────────────────────
@@ -2588,17 +2627,104 @@ def get_analysis():
         d_str = (date.today() - timedelta(days=i)).isoformat()
         rev_list.append({"date": d_str, "revenue": rev_by_day.get(d_str, 0)})
 
+    # ── Wholesale-only extras ─────────────────────────────────────────────────
+    unique_retailers = len(set(b["customer"] for b in bills)) if bills else 0
+
+    cust_rev = {}
+    for b in bills:
+        cust_rev[b["customer"]] = round(cust_rev.get(b["customer"], 0) + b["grand_total"], 2)
+    top_customers = [
+        {"customer": k, "revenue": v}
+        for k, v in sorted(cust_rev.items(), key=lambda x: -x[1])[:8]
+    ]
+
+    # Strip sales: items where unit_type = 'strip', grouped by product name
+    strip_sales = {}
+    if bill_ids:
+        for it in items:
+            if (it["unit_type"] or "strip") == "strip":
+                n = it["name"]
+                strip_sales[n] = strip_sales.get(n, 0) + float(it["qty"] or 0)
+    top_strip_sales = [
+        {"name": k, "strips": round(v, 2)}
+        for k, v in sorted(strip_sales.items(), key=lambda x: -x[1])[:8]
+    ]
+
+    # ── Weekly profit (current calendar month, partition-filtered) ────────────
+    # Mirrors JS _renderAnalysisProfitChart: always current month regardless of
+    # the selected analysis period, so the profit chart is always up to date.
+    now_dt      = date.today()
+    month_start = now_dt.replace(day=1).isoformat()
+    next_mo     = (now_dt.replace(day=28) + timedelta(days=4)).replace(day=1)
+    month_end   = (next_mo - timedelta(days=1)).isoformat()
+
+    month_bills = conn.execute(
+        f"SELECT id, date FROM bills WHERE user_id=%s AND date>=%s AND date<=%s AND {bill_w}",
+        (user_id, month_start, month_end)
+    ).fetchall()
+
+    # Build cost-per-piece map for all user products
+    prods_map = {
+        r["id"]: r for r in
+        conn.execute(
+            "SELECT id, purchase, purchase_unit, pieces_per_strip, strips_per_box "
+            "FROM products WHERE user_id=%s", (user_id,)
+        ).fetchall()
+    }
+
+    week_profit = [0.0, 0.0, 0.0, 0.0]
+    for mb in month_bills:
+        day_n = int(mb["date"].split("-")[2])
+        w_idx = 0 if day_n <= 7 else 1 if day_n <= 14 else 2 if day_n <= 21 else 3
+        for it in conn.execute(
+            """SELECT unit_price, qty, discount,
+                      COALESCE(unit_type,'strip')          AS unit_type,
+                      COALESCE(qty_in_pieces, qty)         AS qty_in_pieces,
+                      product_id,
+                      COALESCE(purchase_cost_line, 0)      AS purchase_cost_line
+               FROM bill_items WHERE bill_id=%s""",
+            (mb["id"],)
+        ).fetchall():
+            qty        = float(it["qty"] or 1)
+            unit_price = float(it["unit_price"] or 0)
+            discount   = float(it["discount"]   or 0)
+            sale_disc  = unit_price * (1 - discount / 100)
+            qty_pieces = float(it["qty_in_pieces"] or qty)
+            ppu        = (qty_pieces / qty) if qty > 0 else 1
+
+            prod = prods_map.get(it["product_id"])
+            if prod and float(prod["purchase"] or 0) > 0:
+                pps = int(prod["pieces_per_strip"] or 10) or 1
+                spb = int(prod["strips_per_box"]   or 10) or 1
+                pu  = (prod["purchase_unit"] or "strip").lower()
+                raw = float(prod["purchase"])
+                if   pu == "box":   cpp = raw / (spb * pps)
+                elif pu == "strip": cpp = raw / pps
+                else:               cpp = raw
+                cost = cpp * ppu
+            else:
+                cost = float(it["purchase_cost_line"] or 0) / qty if qty > 0 else 0
+
+            week_profit[w_idx] += (sale_disc - cost) * qty
+
+    week_profit = [round(v, 2) for v in week_profit]
+
     conn.close()
     return jsonify({
         "totalBills":       len(bills),
         "totalRevenue":     round(total_rev, 2),
         "avgBillValue":     round(avg_bill, 2),
         "topProduct":       top_product,
+        "storeType":        part,                  # 'wholesale' | 'retail'
+        "uniqueRetailers":  unique_retailers,
         "productSales":     [{"name": k, **v} for k, v in sorted_prods],
         "categorySales":    [{"name": k, "revenue": v} for k, v in
                              sorted(cat_sales.items(), key=lambda x: -x[1])],
         "paymentBreakdown": [{"mode": k, "total": v} for k, v in pay_totals.items()],
         "revenueByDay":     rev_list,
+        "topCustomers":     top_customers,         # wholesale: top 8 retailers by revenue
+        "stripSales":       top_strip_sales,       # wholesale: top 8 strip products
+        "weekProfit":       week_profit,           # current month week breakdown [w1,w2,w3,w4]
     })
 
 
@@ -2626,6 +2752,151 @@ def get_expiry():
         elif days <= 90:  result["within90"].append(pd)
         else:             result["safe"].append(pd)
     return jsonify({**result, "counts": {k: len(v) for k, v in result.items()}})
+
+
+# ─────────────────────────────────────────────────────────────
+# PURCHASE RECORDS — full REST CRUD
+# These were previously only accessible via /api/state bulk sync.
+# ─────────────────────────────────────────────────────────────
+
+@app.route('/api/purchase-records', methods=['GET'])
+@jwt_required()
+def get_purchase_records():
+    identity = _get_identity()
+    user_id  = identity['user_id']
+    conn     = get_db()
+    rows = conn.execute(
+        "SELECT * FROM purchase_records WHERE user_id=%s ORDER BY date DESC LIMIT 200",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    return jsonify([_purchase_record_out(r) for r in rows])
+
+
+@app.route('/api/purchase-records', methods=['POST'])
+@jwt_required()
+@require_json
+def add_purchase_record():
+    identity = _get_identity()
+    user_id  = identity['user_id']
+    d        = request.get_json()
+
+    med_name = (d.get("medicineName") or "").strip()
+    party    = (d.get("partyName")    or "").strip()
+    qty      = float(d.get("qty", 0) or 0)
+    amount   = float(d.get("amountPaid", 0) or 0)
+
+    if not med_name:
+        return jsonify({"error": "medicineName is required"}), 400
+    if qty <= 0:
+        return jsonify({"error": "qty must be greater than 0"}), 400
+    if amount < 0:
+        return jsonify({"error": "amountPaid cannot be negative"}), 400
+    if not party:
+        return jsonify({"error": "partyName is required"}), 400
+
+    new_id = d.get("id") or uid()
+    conn   = get_db()
+    conn.execute(
+        """INSERT INTO purchase_records
+           (id, date, medicine_name, qty, qty_unit, amount_paid,
+            party_name, party_type, order_no, expected_delivery,
+            delivery_status, notes, user_id)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+        (
+            new_id,
+            d.get("date")             or today_str(),
+            med_name,
+            qty,
+            d.get("qtyUnit")          or "Box",
+            amount,
+            party,
+            d.get("partyType")        or "Supplier",
+            d.get("orderNo")          or "",
+            d.get("expectedDelivery") or "",
+            d.get("deliveryStatus")   or "Pending",
+            d.get("notes")            or "",
+            user_id,
+        )
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT * FROM purchase_records WHERE id=%s", (new_id,)
+    ).fetchone()
+    conn.close()
+    return jsonify(_purchase_record_out(row)), 201
+
+
+@app.route('/api/purchase-records/<pr_id>', methods=['PATCH'])
+@jwt_required()
+@require_json
+def update_purchase_record(pr_id):
+    """Update delivery status (and optionally other fields)."""
+    identity = _get_identity()
+    user_id  = identity['user_id']
+    d        = request.get_json()
+    conn     = get_db()
+
+    row = conn.execute(
+        "SELECT * FROM purchase_records WHERE id=%s AND user_id=%s",
+        (pr_id, user_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Record not found"}), 404
+
+    # Only allow patching these fields — prevents accidental overwrites
+    allowed = {
+        "deliveryStatus": "delivery_status",
+        "notes":          "notes",
+        "expectedDelivery": "expected_delivery",
+        "orderNo":        "order_no",
+    }
+    updates, params = [], []
+    for js_key, db_col in allowed.items():
+        if js_key in d:
+            updates.append(f"{db_col}=%s")
+            params.append(d[js_key])
+
+    if not updates:
+        conn.close()
+        return jsonify({"error": "No patchable fields provided"}), 400
+
+    params.extend([pr_id, user_id])
+    conn.execute(
+        f"UPDATE purchase_records SET {', '.join(updates)} WHERE id=%s AND user_id=%s",
+        params
+    )
+    conn.commit()
+    updated = conn.execute(
+        "SELECT * FROM purchase_records WHERE id=%s", (pr_id,)
+    ).fetchone()
+    conn.close()
+    return jsonify(_purchase_record_out(updated))
+
+
+@app.route('/api/purchase-records/<pr_id>', methods=['DELETE'])
+@jwt_required()
+def delete_purchase_record(pr_id):
+    identity = _get_identity()
+    user_id  = identity['user_id']
+    conn     = get_db()
+
+    row = conn.execute(
+        "SELECT id FROM purchase_records WHERE id=%s AND user_id=%s",
+        (pr_id, user_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Record not found"}), 404
+
+    conn.execute(
+        "DELETE FROM purchase_records WHERE id=%s AND user_id=%s",
+        (pr_id, user_id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "deleted": pr_id})
 
 
 # ─────────────────────────────────────────────────────────────
