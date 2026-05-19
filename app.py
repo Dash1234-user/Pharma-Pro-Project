@@ -117,14 +117,25 @@ RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 RESEND_FROM    = os.environ.get('RESEND_FROM', 'PharmaCare Pro <onboarding@resend.dev>')
 
 # ── Serve frontend static files ───────────────────────────────
+# Dev: React runs on Vite dev server (:5173)
+# Production: `npm run build` outputs to /dist — Flask serves from there
+FRONTEND_DIST = os.path.join(BASE_DIR, 'dist')
+
 @app.route('/')
 def serve_index():
+    if os.path.exists(FRONTEND_DIST):
+        return send_from_directory(FRONTEND_DIST, 'index.html')
     return send_from_directory(BASE_DIR, 'index.html')
 
 @app.route('/<path:filename>')
 def serve_static(filename):
     if filename.startswith('api/'):
         abort(404)
+    if os.path.exists(FRONTEND_DIST):
+        fp = os.path.join(FRONTEND_DIST, filename)
+        if os.path.exists(fp):
+            return send_from_directory(FRONTEND_DIST, filename)
+        return send_from_directory(FRONTEND_DIST, 'index.html')
     return send_from_directory(BASE_DIR, filename)
 
 
@@ -2229,15 +2240,9 @@ def delete_credit(credit_id):
 @jwt_required()
 def get_credits_summary():
     """
-    Returns aggregated totals for wholesale credits:
-      - totalAmount   : sum of all credit amounts
-      - pendingAmount : sum where status = 'Pending'
-      - clearedAmount : sum where status = 'Cleared'
-      - totalCount    : total records
-      - pendingCount  : pending records count
-      - clearedCount  : cleared records count
-
-    Replaces updateCreditSummary() calculation in app.js.
+    WHOLESALE only — aggregated totals for credits table.
+    (retailers/shops that owe money to the wholesaler)
+    Replaces updateCreditSummary() in app.js.
     """
     identity = _get_identity()
     user_id  = identity['user_id']
@@ -2261,6 +2266,58 @@ def get_credits_summary():
         "totalCount":    len(rows),
         "pendingCount":  sum(1 for r in rows if r["status"] == "Pending"),
         "clearedCount":  sum(1 for r in rows if r["status"] == "Cleared"),
+    })
+
+
+@app.route('/api/shop-credits/summary', methods=['GET'])
+@jwt_required()
+def get_shop_credits_summary():
+    """
+    RETAIL only — aggregated totals for shop_credits table.
+    (suppliers that the retail pharmacy owes money to)
+
+    Mirrors updateRetailCreditSummary() logic in app.js:
+    Only the LATEST record per supplier is counted (deduped by
+    supplier_id + owner_name) — same as the JS seen-set logic.
+
+    Returns:
+      totalPurchase  : sum of total_purchase across latest-per-supplier
+      totalPaid      : sum of paid across latest-per-supplier
+      totalPending   : sum of pending across latest-per-supplier
+      supplierCount  : number of unique suppliers
+    """
+    identity = _get_identity()
+    user_id  = identity['user_id']
+    conn     = get_db()
+
+    rows = conn.execute(
+        "SELECT supplier_id, owner_name, total_purchase, paid, pending "
+        "FROM shop_credits "
+        "WHERE user_id=%s AND partition IN ('retail', 'both') "
+        "ORDER BY bill_date DESC",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+
+    # Deduplicate: keep only the latest record per supplier
+    # (matches JS logic: unshift keeps newest first, Set skips duplicates)
+    seen = set()
+    latest = []
+    for r in rows:
+        key = (r["supplier_id"] or "").lower() + "|" + (r["owner_name"] or "").lower()
+        if key not in seen:
+            seen.add(key)
+            latest.append(r)
+
+    total_purchase = round(sum(r["total_purchase"] or 0 for r in latest), 2)
+    total_paid     = round(sum(r["paid"]           or 0 for r in latest), 2)
+    total_pending  = round(sum(r["pending"]        or 0 for r in latest), 2)
+
+    return jsonify({
+        "totalPurchase":  total_purchase,
+        "totalPaid":      total_paid,
+        "totalPending":   total_pending,
+        "supplierCount":  len(latest),
     })
 
 
