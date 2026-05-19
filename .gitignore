@@ -50,6 +50,10 @@ desktop.ini
 node_modules/
 npm-debug.log*
 
+# add this line to your existing .gitignore
+frontend/node_modules/
+frontend/dist/
+
 # --- Distribution / Build ---
 dist/
 build/
