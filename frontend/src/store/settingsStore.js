@@ -1,11 +1,9 @@
 import { create } from 'zustand';
 
-// Replaces STATE.settings from app.js
-// Mirrors the exact same fields so nothing in the UI logic changes
 const useSettingsStore = create((set) => ({
-  // ── Default values match STATE.settings defaults in app.js ───
+  // ── Defaults ─────────────────────────────────────────────────────────────
   storeName:          'My Pharmacy',
-  storeType:          'Retail Pharmacy',   // 'Retail Pharmacy' | 'Wholesale Pharma'
+  storeType:          'Retail Pharmacy',
   address:            '',
   phone:              '',
   email:              '',
@@ -15,37 +13,36 @@ const useSettingsStore = create((set) => ({
   currency:           '₹',
   lowStockThreshold:  10,
   expiryAlertDays:    90,
-
-  // Wholesale-specific
   wholesaler:         '',
   ownerName:          '',
   wholesalerId:       '',
-
-  // Retail-specific
   shopName:           '',
   retailerOwner:      '',
-
-  // QR codes (base64)
   wholesaleUpiQr:     '',
   retailUpiQr:        '',
+  pharmacyTypeLocked: '',
+  nextBillNo:         1,
 
-  // ── Derived helpers ──────────────────────────────────────────
-  // Replaces: (STATE.settings.storeType || '').trim() === 'Wholesale Pharma'
-  isWholesale: () => {
-    const state = useSettingsStore.getState();
-    return (state.storeType || '').trim() === 'Wholesale Pharma';
-  },
+  // ── Actions ───────────────────────────────────────────────────────────────
 
-  // ── Actions ─────────────────────────────────────────────────
+  // Handles BOTH sources:
+  //   /api/settings  → returns storeType directly
+  //   /api/auth/login → returns pharmacyType (user object)
+  // Both are normalized to storeType here
+  setSettings: (data) =>
+    set((prev) => ({
+      ...prev,
+      ...data,
+      // Normalize: login sends pharmacyType, settings sends storeType
+      storeType: data.storeType || data.pharmacyType || prev.storeType,
+      // storeName: prefer storeName, fall back to wholesaler/shopName
+      storeName: data.storeName
+        || data.wholesaler
+        || data.shopName
+        || prev.storeName,
+    })),
 
-  // Bulk-load settings from /api/settings response
-  // Mirrors: STATE.settings = { ...STATE.settings, ...serverSettings }
-  setSettings: (serverSettings) =>
-    set((prev) => ({ ...prev, ...serverSettings })),
-
-  // Update a single field (used in settings form)
-  updateSetting: (key, value) =>
-    set((prev) => ({ ...prev, [key]: value })),
+  updateSetting: (key, value) => set((prev) => ({ ...prev, [key]: value })),
 }));
 
 export default useSettingsStore;
