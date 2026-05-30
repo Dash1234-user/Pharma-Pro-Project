@@ -99,7 +99,7 @@ export default function Layout({ children, onTopbarAction }) {
   ];
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg)' }}>
+    <div style={{ display:'flex', width:'100%', minHeight:'100vh', background:'var(--bg)' }}>
 
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -155,7 +155,7 @@ export default function Layout({ children, onTopbarAction }) {
         </div>
       </aside>
 
-      {/* ── Sidebar spacer — reserves fixed sidebar width on desktop ──────── */}
+      {/* ── Sidebar spacer — reserves fixed sidebar space in flex layout ─── */}
       <div className="sidebar-spacer" />
 
       {/* ── Main content ────────────────────────────────────────────────── */}
