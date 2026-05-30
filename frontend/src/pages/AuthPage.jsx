@@ -31,6 +31,20 @@ function Input({ label, id, type='text', value, onChange, placeholder, hint, err
   );
 }
 
+// ── Background slideshow — 3 pharmacy images, slide left→right ──────────────
+function AuthBackground() {
+  return (
+    <>
+      <div className="auth-slideshow">
+        <img className="auth-slide" src="/pic1.jpg"   alt="" />
+        <img className="auth-slide" src="/pic2.jpg"   alt="" />
+        <img className="auth-slide" src="/pic3.jpeg"  alt="" />
+      </div>
+      <div className="auth-overlay-bg" />
+    </>
+  );
+}
+
 function AuthHeader() {
   return (
     <div className="auth-header">
@@ -346,6 +360,7 @@ export default function AuthPage({ mode = 'login' }) {
   const [panel, setPanel] = useState(mode);
   return (
     <div className="auth-overlay">
+      <AuthBackground />
       <div className="auth-container">
         {panel === 'login'    && <LoginPanel    onSwitch={setPanel} />}
         {panel === 'register' && <RegisterPanel onSwitch={setPanel} />}
