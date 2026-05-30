@@ -449,47 +449,83 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 /* ══════════════════════════════════════════
    AUTH — Login / Register / Forgot Password
 ══════════════════════════════════════════ */
+/* AUTH — matches Image 1 exactly */
 .auth-overlay{
   position:fixed;inset:0;z-index:1000;
-  background:linear-gradient(135deg,#0a1628 0%,#0f1f3d 60%,#162847 100%);
+  background:linear-gradient(160deg,#0a1628 0%,#0d1f3c 50%,#0a1a35 100%);
   display:flex;align-items:center;justify-content:center;
-  padding:16px;min-height:100vh;
+  padding:16px;min-height:100vh;overflow-y:auto;
 }
 .auth-container{
-  width:100%;max-width:460px;
-  max-height:92vh;overflow-y:auto;
+  width:100%;max-width:480px;
+  display:flex;flex-direction:column;align-items:center;
+  padding:24px 0 40px;
 }
+.auth-header{
+  display:flex;flex-direction:column;align-items:center;
+  gap:12px;margin-bottom:24px;text-align:center;
+}
+.auth-logo-wrap{
+  width:90px;height:90px;border-radius:22px;
+  background:white;box-shadow:0 8px 32px rgba(0,0,0,.28);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;padding:8px;
+}
+.auth-logo-wrap img{width:100%;height:100%;object-fit:contain;border-radius:14px;}
+.auth-title-top{font-size:28px;font-weight:800;color:white;letter-spacing:-.3px;margin:0;}
+.auth-tagline{font-size:13.5px;color:rgba(255,255,255,.65);margin:0;font-weight:400;}
 .auth-panel{
   background:white;border-radius:20px;
-  padding:32px 28px;
-  box-shadow:0 24px 60px rgba(0,0,0,.35);
-  display:flex;flex-direction:column;gap:14px;
+  padding:28px 28px 24px;
+  box-shadow:0 20px 60px rgba(0,0,0,.4);
+  display:flex;flex-direction:column;gap:16px;width:100%;
 }
-.auth-logo{font-size:40px;text-align:center;margin-bottom:4px;}
-.auth-title{font-size:22px;font-weight:800;color:var(--text);text-align:center;margin:0;}
-.auth-subtitle{font-size:13px;color:var(--text2);text-align:center;margin:0;}
+.auth-panel-title{font-size:20px;font-weight:800;color:var(--text);margin:0;}
+.auth-panel-sub{font-size:13px;color:var(--text2);margin:-8px 0 0;}
 .auth-mode-toggle{
   display:grid;grid-template-columns:1fr 1fr;
-  gap:8px;background:var(--bg);border-radius:12px;padding:4px;
+  gap:0;border-radius:12px;overflow:hidden;border:1.5px solid #3730a3;
 }
 .auth-mode-btn{
-  padding:9px 12px;border-radius:9px;font-size:13px;font-weight:600;
-  border:2px solid transparent;cursor:pointer;background:transparent;
-  color:var(--text2);font-family:'Plus Jakarta Sans',sans-serif;
-  transition:all .18s;text-align:center;
+  padding:11px 12px;font-size:13.5px;font-weight:700;
+  border:none;cursor:pointer;color:#3730a3;background:white;
+  font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s;text-align:center;
 }
 .auth-mode-btn.active{
-  background:white;color:#1e40af;border-color:#1e40af;
-  box-shadow:0 2px 8px rgba(30,64,175,.15);
+  background:linear-gradient(135deg,#312e81,#3730a3);color:white;
 }
-.auth-links{display:flex;flex-direction:column;gap:8px;align-items:center;margin-top:4px;}
+.auth-input{
+  width:100%;padding:13px 14px;border-radius:10px;
+  background:#eef2ff;border:1.5px solid #c7d2fe;
+  font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;
+  color:var(--text);outline:none;transition:border .18s;box-sizing:border-box;
+}
+.auth-input:focus{border-color:#6366f1;background:#fff;}
+.auth-input::placeholder{color:#94a3b8;}
+.auth-submit-btn{
+  width:100%;padding:14px;border-radius:12px;
+  background:linear-gradient(135deg,#4f46e5,#0ea5e9);
+  color:white;font-size:15px;font-weight:700;
+  border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;
+  transition:all .2s;letter-spacing:.01em;
+  box-shadow:0 4px 16px rgba(79,70,229,.35);
+}
+.auth-submit-btn:hover{box-shadow:0 6px 20px rgba(79,70,229,.45);transform:translateY(-1px);}
+.auth-submit-btn:active{transform:scale(.98);}
+.auth-submit-btn:disabled{opacity:.65;cursor:not-allowed;transform:none;}
+.auth-links{display:flex;flex-direction:column;gap:6px;align-items:center;margin-top:4px;}
 .auth-link{
   background:none;border:none;cursor:pointer;
-  font-size:13px;color:var(--accent);font-weight:600;
-  font-family:'Plus Jakarta Sans',sans-serif;
-  text-decoration:underline;text-underline-offset:2px;
-  padding:0;transition:color .15s;
+  font-size:13.5px;color:#4f46e5;font-weight:700;
+  font-family:'Plus Jakarta Sans',sans-serif;text-decoration:none;padding:0;transition:color .15s;
 }
-.auth-link:hover{color:var(--accent-d);}
-.form-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;}
+.auth-link:hover{color:#3730a3;text-decoration:underline;}
+.auth-register-line{font-size:13px;color:var(--text2);}
+.auth-register-line a,.auth-register-line button{
+  color:#4f46e5;font-weight:700;background:none;border:none;
+  cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;
+}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-label{font-size:11.5px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;}
 .form-hint{font-size:11.5px;color:#94a3b8;margin-top:2px;}
+.form-error{font-size:12px;color:#ef4444;margin-top:2px;}
