@@ -43,7 +43,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .sidebar-footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,.07);}
 
 /* ══ Main Content ══ */
-#main-content{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh;}
+#main-content{flex:1;display:flex;flex-direction:column;min-height:100vh;min-width:0;}
+.sidebar-spacer{width:var(--sidebar);flex-shrink:0;}
 
 /* ══ Topbar ══ */
 #topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:var(--topbar-h);background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;box-shadow:0 1px 8px rgba(0,0,0,.05);}
@@ -285,7 +286,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   .sidebar-close-btn{display:flex;}
 
   /* Main full-width, add bottom padding for nav bar */
-  #main-content{margin-left:0;padding-bottom:var(--bnav-h);}
+  #main-content{padding-bottom:var(--bnav-h);width:100%;}
+  .sidebar-spacer{display:none;}
 
   /* Topbar */
   #topbar{padding:0 14px;}
