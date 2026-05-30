@@ -15,6 +15,7 @@
 }
 
 body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+#root{flex:1;display:flex;flex-direction:column;min-width:0;min-height:100vh;}
 
 /* ══ Sidebar Overlay ══ */
 .sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;backdrop-filter:blur(2px);}
@@ -286,7 +287,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   .sidebar-close-btn{display:flex;}
 
   /* Main full-width, add bottom padding for nav bar */
-  #main-content{padding-bottom:var(--bnav-h);width:100%;}
+  #main-content{padding-bottom:var(--bnav-h);}
   .sidebar-spacer{display:none;}
 
   /* Topbar */
