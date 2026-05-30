@@ -111,12 +111,9 @@ export default function Layout({ children, onTopbarAction }) {
       <aside id="sidebar" className={sidebarOpen ? 'open' : ''}>
         <div className="sidebar-brand">
           <div className="brand-icon" id="brand-icon"
-            style={{ background:'transparent', boxShadow:'none', width:48, height:48, padding:0, overflow:'hidden' }}>
-            <div style={{ width:'100%', height:'100%', borderRadius:10,
-              background:'linear-gradient(135deg,#0ea5e9,#6366f1)',
-              display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>
-              💊
-            </div>
+            style={{ background:'transparent', boxShadow:'none', width:52, height:52, padding:0, overflow:'hidden', borderRadius:12 }}>
+            <img src="/logo.jpeg" alt="PharmaCare Pro"
+              style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:12 }} />
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <div className="brand-name" id="brand-name">
