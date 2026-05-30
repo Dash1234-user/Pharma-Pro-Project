@@ -4,8 +4,8 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
 :root{
-  --sidebar:220px;
-  --topbar-h:64px;
+  --sidebar:248px;
+  --topbar-h:72px;
   --bnav-h:62px;
   --navy-950:#0a1628;--navy-900:#0f1f3d;--navy-800:#162847;
   --accent:#0ea5e9;--accent-d:#0284c7;--accent-light:#f0f9ff;
@@ -31,15 +31,15 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 
 .sidebar-brand{display:flex;align-items:center;gap:10px;padding:20px 16px 18px;border-bottom:1px solid rgba(255,255,255,.07);}
 .brand-icon{width:52px;height:52px;border-radius:12px;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:none;overflow:hidden;}
-.brand-name{font-size:14px;font-weight:800;color:white;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.brand-type{font-size:9.5px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.1em;margin-top:1px;}
+.brand-name{font-size:16px;font-weight:800;color:white;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.brand-type{font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em;margin-top:1px;}
 .sidebar-close-btn{display:none;background:rgba(255,255,255,.1);border:none;border-radius:8px;width:32px;height:32px;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,.7);flex-shrink:0;transition:background .15s;}
 .sidebar-close-btn:hover{background:rgba(255,255,255,.2);}
 .sidebar-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px;}
-.nav-link{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:10px;color:rgba(255,255,255,.5);font-size:13.5px;font-weight:500;text-decoration:none;cursor:pointer;transition:all .18s;user-select:none;}
+.nav-link{display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:10px;color:rgba(255,255,255,.65);font-size:14.5px;font-weight:500;text-decoration:none;cursor:pointer;transition:all .18s;user-select:none;}
 .nav-link:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.85);}
 .nav-link.active{background:linear-gradient(90deg,rgba(14,165,233,.22),rgba(14,165,233,.08));color:#38bdf8;border:1px solid rgba(14,165,233,.25);}
-.nav-svg{width:16px;height:16px;flex-shrink:0;}
+.nav-svg{width:18px;height:18px;flex-shrink:0;}
 .sidebar-footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,.07);}
 
 /* ══ Main Content ══ */
@@ -51,8 +51,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .hamburger-btn{display:none;flex-direction:column;justify-content:center;gap:5px;width:40px;height:40px;background:none;border:none;cursor:pointer;padding:8px;border-radius:10px;transition:background .15s;}
 .hamburger-btn:hover{background:var(--bg);}
 .hamburger-btn span{display:block;width:22px;height:2px;background:var(--text);border-radius:2px;transition:all .2s;}
-.page-heading{font-size:19px;font-weight:800;color:var(--text);}
-.page-sub{font-size:11.5px;color:var(--text2);margin-top:1px;}
+.page-heading{font-size:22px;font-weight:800;color:var(--text);}
+.page-sub{font-size:13px;color:var(--text2);margin-top:2px;}
 
 /* ══ Pages ══ */
 .page{display:none;padding:22px 24px;animation:fadeIn .25s ease;}
