@@ -155,8 +155,11 @@ export default function Layout({ children, onTopbarAction }) {
         </div>
       </aside>
 
+      {/* ── Sidebar spacer — reserves fixed sidebar width on desktop ──────── */}
+      <div className="sidebar-spacer" />
+
       {/* ── Main content ────────────────────────────────────────────────── */}
-      <main id="main-content" style={{ flex:1, minWidth:0 }}>
+      <main id="main-content">
         <header id="topbar">
           <div className="topbar-left">
             <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
