@@ -449,83 +449,135 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 /* ══════════════════════════════════════════
    AUTH — Login / Register / Forgot Password
 ══════════════════════════════════════════ */
-/* AUTH — matches Image 1 exactly */
+
+/* ── Slideshow background ─────────────────────────────────────────────── */
+.auth-slideshow{
+  position:fixed;inset:0;z-index:0;overflow:hidden;
+}
+.auth-slide{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:cover;
+  opacity:0;
+  animation:slideAnim 18s infinite;
+  will-change:transform,opacity;
+}
+.auth-slide:nth-child(1){animation-delay:0s;}
+.auth-slide:nth-child(2){animation-delay:6s;}
+.auth-slide:nth-child(3){animation-delay:12s;}
+@keyframes slideAnim{
+  0%   {opacity:0;transform:translateX(-80px);}
+  6%   {opacity:1;transform:translateX(0);}
+  28%  {opacity:1;transform:translateX(0);}
+  34%  {opacity:0;transform:translateX(80px);}
+  100% {opacity:0;transform:translateX(80px);}
+}
+/* Dark translucent overlay over slideshow */
+.auth-overlay-bg{
+  position:fixed;inset:0;z-index:1;
+  background:rgba(8,16,36,0.72);
+  backdrop-filter:blur(1.5px);
+}
+
+/* ── Auth layout ─────────────────────────────────────────────────────── */
 .auth-overlay{
-  position:fixed;inset:0;z-index:1000;
-  background:linear-gradient(160deg,#0a1628 0%,#0d1f3c 50%,#0a1a35 100%);
+  position:fixed;inset:0;z-index:2;
   display:flex;align-items:center;justify-content:center;
   padding:16px;min-height:100vh;overflow-y:auto;
 }
 .auth-container{
   width:100%;max-width:480px;
   display:flex;flex-direction:column;align-items:center;
-  padding:24px 0 40px;
+  padding:24px 0 40px;position:relative;z-index:3;
 }
+
+/* ── Header above card ──────────────────────────────────────────────── */
 .auth-header{
   display:flex;flex-direction:column;align-items:center;
-  gap:12px;margin-bottom:24px;text-align:center;
+  gap:12px;margin-bottom:20px;text-align:center;
 }
 .auth-logo-wrap{
   width:90px;height:90px;border-radius:22px;
-  background:white;box-shadow:0 8px 32px rgba(0,0,0,.28);
+  background:white;box-shadow:0 8px 32px rgba(0,0,0,.35);
   display:flex;align-items:center;justify-content:center;
   overflow:hidden;padding:8px;
 }
 .auth-logo-wrap img{width:100%;height:100%;object-fit:contain;border-radius:14px;}
-.auth-title-top{font-size:28px;font-weight:800;color:white;letter-spacing:-.3px;margin:0;}
-.auth-tagline{font-size:13.5px;color:rgba(255,255,255,.65);margin:0;font-weight:400;}
+.auth-title-top{font-size:28px;font-weight:800;color:white;letter-spacing:-.3px;margin:0;text-shadow:0 2px 8px rgba(0,0,0,.4);}
+.auth-tagline{font-size:14px;color:rgba(255,255,255,.8);margin:0;font-weight:500;text-shadow:0 1px 4px rgba(0,0,0,.3);}
+
+/* ── White card ─────────────────────────────────────────────────────── */
 .auth-panel{
   background:white;border-radius:20px;
   padding:28px 28px 24px;
-  box-shadow:0 20px 60px rgba(0,0,0,.4);
-  display:flex;flex-direction:column;gap:16px;width:100%;
+  box-shadow:0 24px 64px rgba(0,0,0,.5);
+  display:flex;flex-direction:column;gap:0;width:100%;
 }
-.auth-panel-title{font-size:20px;font-weight:800;color:var(--text);margin:0;}
-.auth-panel-sub{font-size:13px;color:var(--text2);margin:-8px 0 0;}
+/* Each item inside panel gets top margin instead of gap to avoid overlap */
+.auth-panel > *+* { margin-top:14px; }
+.auth-panel-title{font-size:22px;font-weight:800;color:#0f172a;margin:0;line-height:1.2;}
+.auth-panel-sub{font-size:13.5px;color:#475569;margin:4px 0 0;line-height:1.4;}
+
+/* ── Mode toggle ────────────────────────────────────────────────────── */
 .auth-mode-toggle{
   display:grid;grid-template-columns:1fr 1fr;
-  gap:0;border-radius:12px;overflow:hidden;border:1.5px solid #3730a3;
+  gap:0;border-radius:12px;overflow:hidden;border:2px solid #3730a3;
 }
 .auth-mode-btn{
-  padding:11px 12px;font-size:13.5px;font-weight:700;
+  padding:11px 10px;font-size:13px;font-weight:700;
   border:none;cursor:pointer;color:#3730a3;background:white;
   font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s;text-align:center;
+  line-height:1.3;
 }
 .auth-mode-btn.active{
   background:linear-gradient(135deg,#312e81,#3730a3);color:white;
 }
+
+/* ── Inputs ─────────────────────────────────────────────────────────── */
 .auth-input{
   width:100%;padding:13px 14px;border-radius:10px;
   background:#eef2ff;border:1.5px solid #c7d2fe;
   font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;
-  color:var(--text);outline:none;transition:border .18s;box-sizing:border-box;
+  color:#0f172a;outline:none;transition:border .18s;box-sizing:border-box;
+  line-height:1.4;
 }
 .auth-input:focus{border-color:#6366f1;background:#fff;}
-.auth-input::placeholder{color:#94a3b8;}
+.auth-input::placeholder{color:#94a3b8;font-weight:400;}
+
+/* ── Submit button ──────────────────────────────────────────────────── */
 .auth-submit-btn{
   width:100%;padding:14px;border-radius:12px;
   background:linear-gradient(135deg,#4f46e5,#0ea5e9);
   color:white;font-size:15px;font-weight:700;
   border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;
-  transition:all .2s;letter-spacing:.01em;
-  box-shadow:0 4px 16px rgba(79,70,229,.35);
+  transition:all .2s;letter-spacing:.02em;
+  box-shadow:0 4px 16px rgba(79,70,229,.4);
 }
-.auth-submit-btn:hover{box-shadow:0 6px 20px rgba(79,70,229,.45);transform:translateY(-1px);}
+.auth-submit-btn:hover{box-shadow:0 6px 20px rgba(79,70,229,.5);transform:translateY(-1px);}
 .auth-submit-btn:active{transform:scale(.98);}
-.auth-submit-btn:disabled{opacity:.65;cursor:not-allowed;transform:none;}
-.auth-links{display:flex;flex-direction:column;gap:6px;align-items:center;margin-top:4px;}
+.auth-submit-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+
+/* ── Links ──────────────────────────────────────────────────────────── */
+.auth-links{display:flex;flex-direction:column;gap:6px;align-items:center;}
 .auth-link{
   background:none;border:none;cursor:pointer;
-  font-size:13.5px;color:#4f46e5;font-weight:700;
+  font-size:14px;color:#4f46e5;font-weight:700;
   font-family:'Plus Jakarta Sans',sans-serif;text-decoration:none;padding:0;transition:color .15s;
 }
 .auth-link:hover{color:#3730a3;text-decoration:underline;}
-.auth-register-line{font-size:13px;color:var(--text2);}
-.auth-register-line a,.auth-register-line button{
+.auth-register-line{font-size:13.5px;color:#475569;}
+.auth-register-line button{
   color:#4f46e5;font-weight:700;background:none;border:none;
-  cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;
+  cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;
 }
-.form-group{display:flex;flex-direction:column;gap:5px;}
-.form-label{font-size:11.5px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;}
-.form-hint{font-size:11.5px;color:#94a3b8;margin-top:2px;}
-.form-error{font-size:12px;color:#ef4444;margin-top:2px;}
+
+/* ── Form fields ────────────────────────────────────────────────────── */
+.form-group{display:flex;flex-direction:column;gap:6px;}
+/* Bold, dark, clearly visible labels — fix for overlapping/light text */
+.form-label{
+  font-size:12.5px;font-weight:800;color:#1e293b;
+  text-transform:uppercase;letter-spacing:.06em;
+  line-height:1;display:block;
+}
+.form-hint{font-size:12px;color:#64748b;margin-top:2px;line-height:1.4;}
+.form-error{font-size:12.5px;color:#ef4444;margin-top:2px;font-weight:600;}
