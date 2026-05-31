@@ -1,49 +1,57 @@
 import { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import client from '../api/client';
+import useAuthStore from '../store/authStore';
 import useSettingsStore from '../store/settingsStore';
 
-// Replaces: loadSettingsForm() + _fillSettingsForm() + saveSettings() in app.js
-// Locked fields (storeType, drugLicense, gstin) come from JWT — never editable
-// Backend enforces this: PUT /api/settings always uses JWT values for locked fields
+// ── API calls ─────────────────────────────────────────────────────────────────
+const fetchSettings  = () => client.get('/settings').then(r => r.data);
+const fetchDashboard = () => client.get('/dashboard').then(r => r.data);
 
-const fetchSettings = () => client.get('/settings').then(r => r.data);
-
-function Section({ title, children }) {
-  return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div className="card-header">
-        <h3 className="card-title">{title}</h3>
-      </div>
-      <div style={{ padding: '16px 20px', display:'flex', flexDirection:'column', gap:14 }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, id, type='text', value, onChange, placeholder, locked, hint }) {
+// ── Locked field display ──────────────────────────────────────────────────────
+function LockedField({ label, id, value }) {
   return (
     <div className="form-group">
       <label className="form-label" htmlFor={id}>
-        {label}{locked && <span style={{ marginLeft:6, fontSize:10, color:'#6366f1', fontWeight:700, background:'#eef2ff', padding:'1px 6px', borderRadius:4 }}>LOCKED</span>}
+        {label}
+        <span style={{ marginLeft:6, fontSize:10, color:'#d97706', fontWeight:700, background:'#fef3c7', padding:'1px 6px', borderRadius:4, border:'1px solid #fcd34d' }}>
+          🔒 LOCKED
+        </span>
       </label>
-      {locked ? (
-        <div className="form-input" style={{ background:'#f8fafc', color:'#475569', cursor:'not-allowed', userSelect:'all' }}>
-          {value || '—'}
-        </div>
-      ) : (
-        <input id={id} className="form-input" type={type}
-          value={value} onChange={e => onChange(e.target.value)}
-          placeholder={placeholder} />
-      )}
-      {hint && <div style={{ fontSize:11.5, color:'#94a3b8', marginTop:2 }}>{hint}</div>}
+      <input id={id} className="form-input"
+        value={value || ''} readOnly
+        style={{ background:'#f8fafc', color:'#475569', cursor:'default' }} />
     </div>
   );
 }
 
-// QR upload — mirrors handleQrUpload() in app.js
-function QrUpload({ label, value, onChange }) {
+// ── Editable field ────────────────────────────────────────────────────────────
+function Field({ label, id, type='text', value, onChange, placeholder }) {
+  return (
+    <div className="form-group">
+      <label className="form-label" htmlFor={id}>{label}</label>
+      <input id={id} className="form-input" type={type}
+        value={value} onChange={e => onChange(e.target.value)}
+        placeholder={placeholder} />
+    </div>
+  );
+}
+
+// ── Textarea field ────────────────────────────────────────────────────────────
+function TextareaField({ label, id, value, onChange, placeholder }) {
+  return (
+    <div className="form-group">
+      <label className="form-label" htmlFor={id}>{label}</label>
+      <textarea id={id} className="form-input"
+        value={value} onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ minHeight:80, resize:'vertical', fontFamily:'inherit' }} />
+    </div>
+  );
+}
+
+// ── QR Upload ─────────────────────────────────────────────────────────────────
+function QrUpload({ label, id, value, onChange }) {
   const ref = useRef();
   function handleFile(e) {
     const file = e.target.files?.[0];
@@ -56,23 +64,22 @@ function QrUpload({ label, value, onChange }) {
   return (
     <div className="form-group">
       <label className="form-label">{label}</label>
-      <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
         {value ? (
-          <img src={value} alt="QR Code" style={{ width:80, height:80, border:'1.5px solid var(--border)', borderRadius:8, objectFit:'contain' }} />
+          <img src={value} alt="QR" style={{ width:80, height:80, border:'1.5px solid var(--border)', borderRadius:8, objectFit:'contain' }} />
         ) : (
-          <div style={{ width:80, height:80, border:'2px dashed #cbd5e1', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', color:'#94a3b8', fontSize:11 }}>
-            No QR
-          </div>
+          <div style={{ color:'#94a3b8', fontSize:12 }}>No QR uploaded</div>
         )}
-        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-          <button className="btn-outline" style={{ fontSize:12, padding:'6px 12px' }}
+        <div style={{ display:'flex', gap:8 }}>
+          <button type="button" className="btn-outline" style={{ fontSize:12, padding:'6px 14px' }}
             onClick={() => ref.current?.click()}>
-            📷 Upload QR
+            📷 Upload QR Image
           </button>
           {value && (
-            <button className="btn-outline" style={{ fontSize:12, padding:'6px 12px', color:'#ef4444', borderColor:'#ef4444' }}
+            <button type="button" className="btn-outline"
+              style={{ fontSize:12, padding:'6px 14px', color:'#ef4444', borderColor:'#fca5a5' }}
               onClick={() => onChange('')}>
-              🗑️ Remove
+              Remove
             </button>
           )}
         </div>
@@ -82,10 +89,25 @@ function QrUpload({ label, value, onChange }) {
   );
 }
 
+// ── Section header (matches old UI) ──────────────────────────────────────────
+function SectionLabel({ children }) {
+  return (
+    <div style={{ fontSize:12, fontWeight:800, color:'#0ea5e9', textTransform:'uppercase',
+      letterSpacing:'.08em', marginTop:8, marginBottom:4 }}>
+      {children}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN SETTINGS PAGE
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function SettingsPage() {
+  const qc                              = useQueryClient();
+  const { logout }                      = useAuthStore();
   const { setSettings: setStoreSettings } = useSettingsStore();
 
-  // ── Local form state ──────────────────────────────────────────────────────
+  // ── Form state ─────────────────────────────────────────────────────────────
   const [storeName,         setStoreName]         = useState('');
   const [address,           setAddress]           = useState('');
   const [phone,             setPhone]             = useState('');
@@ -94,169 +116,361 @@ export default function SettingsPage() {
   const [currency,          setCurrency]          = useState('₹');
   const [lowStockThreshold, setLowStockThreshold] = useState('10');
   const [expiryAlertDays,   setExpiryAlertDays]   = useState('90');
-  // Wholesale fields
-  const [wholesaler,    setWholesaler]    = useState('');
-  const [ownerName,     setOwnerName]     = useState('');
-  const [wholesalerId,  setWholesalerId]  = useState('');
-  // Retail fields
-  const [shopName,      setShopName]      = useState('');
-  const [retailerOwner, setRetailerOwner] = useState('');
-  // QR codes
-  const [wholesaleUpiQr, setWholesaleUpiQr] = useState('');
-  const [retailUpiQr,    setRetailUpiQr]    = useState('');
-  // Locked fields — read only, from JWT
-  const [lockedType,    setLockedType]    = useState('');
-  const [lockedLicense, setLockedLicense] = useState('');
-  const [lockedGstin,   setLockedGstin]   = useState('');
+  const [wholesaler,        setWholesaler]        = useState('');
+  const [ownerName,         setOwnerName]         = useState('');
+  const [wholesalerId,      setWholesalerId]      = useState('');
+  const [shopName,          setShopName]          = useState('');
+  const [retailerOwner,     setRetailerOwner]     = useState('');
+  const [wholesaleUpiQr,    setWholesaleUpiQr]    = useState('');
+  const [retailUpiQr,       setRetailUpiQr]       = useState('');
+  // Locked (from JWT — never editable)
+  const [lockedType,        setLockedType]        = useState('');
+  const [lockedLicense,     setLockedLicense]     = useState('');
+  const [lockedGstin,       setLockedGstin]       = useState('');
+  const [lockedName,        setLockedName]        = useState('');
 
-  const [toast, setToast] = useState('');
+  const [toastMsg,  setToastMsg]  = useState('');
+  const [toastType, setToastType] = useState('ok');
   const isWS = (lockedType || '').trim() === 'Wholesale Pharma';
 
-  // ── Load settings ─────────────────────────────────────────────────────────
-  const { isLoading } = useQuery({
+  // ── Fetch settings — useEffect to populate (RQ v5 removed onSuccess) ───────
+  const { data: settingsData, isLoading } = useQuery({
     queryKey: ['settings'],
-    queryFn: fetchSettings,
-    onSuccess: (s) => {
-      setStoreName(s.storeName || '');
-      setAddress(s.address || '');
-      setPhone(s.userPhone || s.phone || '');
-      setEmail(s.userEmail || s.email || '');
-      setDefaultGst(String(s.defaultGst ?? 12));
-      setCurrency(s.currency || '₹');
-      setLowStockThreshold(String(s.lowStockThreshold ?? 10));
-      setExpiryAlertDays(String(s.expiryAlertDays ?? 90));
-      setWholesaler(s.wholesaler || '');
-      setOwnerName(s.ownerName || '');
-      setWholesalerId(s.wholesalerId || '');
-      setShopName(s.shopName || '');
-      setRetailerOwner(s.retailerOwner || '');
-      setWholesaleUpiQr(s.wholesaleUpiQr || '');
-      setRetailUpiQr(s.retailUpiQr || '');
-      setLockedType(s.pharmacyTypeLocked || s.storeType || '');
-      setLockedLicense(s.drugLicenseLocked || s.license || '');
-      setLockedGstin(s.gstinLocked || s.gstin || '');
-    },
+    queryFn:  fetchSettings,
   });
 
-  // ── Save settings ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!settingsData) return;
+    const s = settingsData;
+    setStoreName(s.storeName         || '');
+    setAddress(s.address             || '');
+    setPhone(s.userPhone || s.phone  || '');
+    setEmail(s.userEmail || s.email  || '');
+    setDefaultGst(String(s.defaultGst     ?? 12));
+    setCurrency(s.currency           || '₹');
+    setLowStockThreshold(String(s.lowStockThreshold ?? 10));
+    setExpiryAlertDays(String(s.expiryAlertDays     ?? 90));
+    setWholesaler(s.wholesaler       || '');
+    setOwnerName(s.ownerName         || '');
+    setWholesalerId(s.wholesalerId   || '');
+    setShopName(s.shopName           || '');
+    setRetailerOwner(s.retailerOwner || '');
+    setWholesaleUpiQr(s.wholesaleUpiQr || '');
+    setRetailUpiQr(s.retailUpiQr     || '');
+    setLockedType(s.pharmacyTypeLocked || s.storeType || '');
+    setLockedLicense(s.drugLicenseLocked || s.license || '');
+    setLockedGstin(s.gstinLocked    || s.gstin    || '');
+    setLockedName(s.userName         || '');
+  }, [settingsData]);
+
+  // ── Dashboard stats for App Info panel ────────────────────────────────────
+  const { data: dash } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn:  fetchDashboard,
+    staleTime: 60_000,
+  });
+
+  // ── Save settings ──────────────────────────────────────────────────────────
   const saveMutation = useMutation({
     mutationFn: (payload) => client.put('/settings', payload),
     onSuccess: (_, payload) => {
-      // Update Zustand store so sidebar name updates immediately
       setStoreSettings({ storeName: payload.storeName });
+      qc.invalidateQueries({ queryKey: ['settings'] });
       showToast('Settings saved ✓');
     },
-    onError: () => showToast('Save failed — try again', 'err'),
+    onError: () => showToast('Save failed — please try again', 'err'),
   });
-
-  function showToast(msg, type = 'ok') {
-    setToast({ msg, type });
-    setTimeout(() => setToast(''), 3200);
-  }
 
   function handleSave() {
     saveMutation.mutate({
-      storeName:          storeName.trim()             || 'My Pharmacy',
-      address,            phone,                email,
-      defaultGst:         parseFloat(defaultGst)       || 12,
-      currency:           currency                     || '₹',
-      lowStockThreshold:  parseInt(lowStockThreshold)  || 10,
-      expiryAlertDays:    parseInt(expiryAlertDays)    || 90,
-      wholesaler,         ownerName,         wholesalerId,
-      shopName,           retailerOwner,
-      wholesaleUpiQr,     retailUpiQr,
+      storeName:         storeName.trim() || 'My Pharmacy',
+      address,           phone,           email,
+      defaultGst:        parseFloat(defaultGst)      || 12,
+      currency:          currency                    || '₹',
+      lowStockThreshold: parseInt(lowStockThreshold) || 10,
+      expiryAlertDays:   parseInt(expiryAlertDays)   || 90,
+      wholesaler,        ownerName,       wholesalerId,
+      shopName,          retailerOwner,
+      wholesaleUpiQr,    retailUpiQr,
     });
   }
 
-  if (isLoading) return <div style={{ padding:32, textAlign:'center', color:'#94a3b8' }}>Loading settings…</div>;
+  // ── Export backup ──────────────────────────────────────────────────────────
+  async function handleExport() {
+    try {
+      const res  = await client.get('/export/backup', { responseType:'blob' });
+      const url  = URL.createObjectURL(new Blob([JSON.stringify(res.data, null, 2)]));
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `pharmacare-backup-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Backup exported ✓');
+    } catch { showToast('Export failed', 'err'); }
+  }
+
+  // ── Reset all data ─────────────────────────────────────────────────────────
+  // Mirrors resetAllData() in app.js — double confirm, then POST to /api/state
+  async function handleReset() {
+    if (!window.confirm('⚠️ RESET ALL DATA?\nThis will permanently delete all medicines, bills, credits and settings for your account.')) return;
+    if (!window.confirm('Are you absolutely sure? This CANNOT be undone!')) return;
+    try {
+      await client.post('/state', {
+        products:[], bills:[], stockIns:[], credits:[],
+        shopCredits:[], categories:[], nextBillNo:1
+      });
+      showToast('All data reset ✓');
+      qc.invalidateQueries();          // refresh all queries
+    } catch { showToast('Reset failed', 'err'); }
+  }
+
+  function showToast(msg, type = 'ok') {
+    setToastMsg(msg); setToastType(type);
+    setTimeout(() => setToastMsg(''), 3200);
+  }
+
+  if (isLoading) return (
+    <div style={{ padding:32, textAlign:'center', color:'#94a3b8' }}>Loading settings…</div>
+  );
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: 720, margin: '0 auto' }}>
+    <div style={{ padding:'20px 24px' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:24, alignItems:'start' }}>
 
-      {/* ── Pharmacy Identity (locked) ─────────────────────────────────── */}
-      <Section title="🔒 Pharmacy Identity">
-        <div style={{ background:'#f0f9ff', border:'1.5px solid #bae6fd', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#0369a1' }}>
-          These fields are set during registration and cannot be changed here.
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-          <Field label="Pharmacy Type"   value={lockedType}    locked />
-          <Field label="Drug License No." value={lockedLicense} locked />
-          <Field label="GSTIN"           value={lockedGstin}   locked />
-        </div>
-      </Section>
+        {/* ── LEFT: Pharmacy Configuration ────────────────────────────── */}
+        <div className="card" style={{ padding:'24px' }}>
+          <h3 style={{ fontSize:18, fontWeight:800, color:'var(--text)', margin:'0 0 20px' }}>
+            Pharmacy Configuration
+          </h3>
 
-      {/* ── General Settings ───────────────────────────────────────────── */}
-      <Section title="🏥 General">
-        <Field label="Store / Business Name" id="set-name"
-          value={storeName} onChange={setStoreName} placeholder="Your pharmacy name" />
-        <Field label="Address" id="set-address"
-          value={address} onChange={setAddress} placeholder="Full address" />
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-          <Field label="Phone" id="set-phone" type="tel"
-            value={phone} onChange={setPhone} placeholder="10-digit mobile" />
-          <Field label="Email" id="set-email" type="email"
-            value={email} onChange={setEmail} placeholder="pharmacy@email.com" />
-        </div>
-      </Section>
-
-      {/* ── Preferences ────────────────────────────────────────────────── */}
-      <Section title="⚙️ Preferences">
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-          <Field label="Default GST %" id="set-gst" type="number"
-            value={defaultGst} onChange={setDefaultGst}
-            hint="Applied to new bills" />
-          <Field label="Currency Symbol" id="set-currency"
-            value={currency} onChange={setCurrency} placeholder="₹" />
-          <Field label="Low Stock Qty" id="set-low-stock" type="number"
-            value={lowStockThreshold} onChange={setLowStockThreshold}
-            hint="Alert threshold" />
-        </div>
-        <Field label="Expiry Alert Days" id="set-expiry-days" type="number"
-          value={expiryAlertDays} onChange={setExpiryAlertDays}
-          hint="Days before expiry to show alerts" />
-      </Section>
-
-      {/* ── Wholesale fields ────────────────────────────────────────────── */}
-      {isWS && (
-        <Section title="🏭 Wholesale Details">
-          <Field label="Business / Wholesaler Name" id="set-wholesaler"
-            value={wholesaler} onChange={setWholesaler} placeholder="Wholesale business name" />
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <Field label="Owner Name" id="set-owner-name"
-              value={ownerName} onChange={setOwnerName} placeholder="Owner full name" />
-            <Field label="Wholesaler ID" id="set-wholesaler-id"
-              value={wholesalerId} onChange={setWholesalerId} placeholder="e.g. WS-2024-001" />
+          {/* Pharmacy Name */}
+          <div className="form-group" style={{ marginBottom:14 }}>
+            <label className="form-label" htmlFor="set-name">PHARMACY NAME *</label>
+            <input id="set-name" className="form-input" type="text"
+              value={storeName} onChange={e => setStoreName(e.target.value)}
+              placeholder="Your pharmacy name" />
           </div>
-          <QrUpload label="UPI QR Code (Wholesale)"
-            value={wholesaleUpiQr} onChange={setWholesaleUpiQr} />
-        </Section>
-      )}
 
-      {/* ── Retail fields ───────────────────────────────────────────────── */}
-      {!isWS && (
-        <Section title="🏪 Retail Details">
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <Field label="Shop / Store Name" id="set-shop-name"
-              value={shopName} onChange={setShopName} placeholder="Retail shop name" />
-            <Field label="Owner / Proprietor" id="set-retailer-owner"
-              value={retailerOwner} onChange={setRetailerOwner} placeholder="Owner full name" />
+          {/* Pharmacy Type — LOCKED */}
+          <LockedField label="PHARMACY TYPE" id="set-type" value={lockedType} />
+
+          {/* Address */}
+          <div className="form-group" style={{ marginBottom:14, marginTop:14 }}>
+            <label className="form-label" htmlFor="set-address">ADDRESS</label>
+            <textarea id="set-address" className="form-input"
+              value={address} onChange={e => setAddress(e.target.value)}
+              placeholder="Pharmacy address"
+              style={{ minHeight:72, resize:'vertical', fontFamily:'inherit' }} />
           </div>
-          <QrUpload label="UPI QR Code (Retail)"
-            value={retailUpiQr} onChange={setRetailUpiQr} />
-        </Section>
-      )}
 
-      {/* ── Save button ─────────────────────────────────────────────────── */}
-      <button className="btn-primary"
-        style={{ width:'100%', padding:'13px', fontSize:15, fontWeight:700 }}
-        onClick={handleSave} disabled={saveMutation.isPending}>
-        {saveMutation.isPending ? 'Saving…' : '💾 Save Settings'}
-      </button>
+          {/* Phone */}
+          <div className="form-group" style={{ marginBottom:14 }}>
+            <label className="form-label" htmlFor="set-phone">PHONE</label>
+            <input id="set-phone" className="form-input" type="tel"
+              value={phone} onChange={e => setPhone(e.target.value)}
+              placeholder="+91XXXXXXXXXX" />
+          </div>
+
+          {/* Email */}
+          <div className="form-group" style={{ marginBottom:14 }}>
+            <label className="form-label" htmlFor="set-email">EMAIL</label>
+            <input id="set-email" className="form-input" type="email"
+              value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="pharmacy@email.com" />
+          </div>
+
+          {/* Drug License — LOCKED */}
+          <div style={{ marginBottom:14 }}>
+            <LockedField label="DRUG LICENSE NO." id="set-license" value={lockedLicense} />
+          </div>
+
+          {/* GSTIN — LOCKED */}
+          <div style={{ marginBottom:14 }}>
+            <LockedField label="GSTIN" id="set-gstin" value={lockedGstin} />
+          </div>
+
+          {/* ── Wholesale-specific fields ──────────────────────────────── */}
+          {isWS && <>
+            <SectionLabel>WHOLESALE DETAILS</SectionLabel>
+            <div className="form-group" style={{ marginBottom:14 }}>
+              <label className="form-label" htmlFor="set-wholesaler">WHOLESALER (BUSINESS NAME)</label>
+              <input id="set-wholesaler" className="form-input"
+                value={wholesaler} onChange={e => setWholesaler(e.target.value)}
+                placeholder="Wholesale business name" />
+            </div>
+            <div className="form-group" style={{ marginBottom:14 }}>
+              <label className="form-label" htmlFor="set-owner-name">OWNER NAME</label>
+              <input id="set-owner-name" className="form-input"
+                value={ownerName} onChange={e => setOwnerName(e.target.value)}
+                placeholder="Owner full name" />
+            </div>
+            <div className="form-group" style={{ marginBottom:14 }}>
+              <label className="form-label" htmlFor="set-wholesaler-id">WHOLESALER ID</label>
+              <input id="set-wholesaler-id" className="form-input"
+                value={wholesalerId} onChange={e => setWholesalerId(e.target.value)}
+                placeholder="e.g. WHL-001" />
+            </div>
+          </>}
+
+          {/* ── Retail-specific fields ─────────────────────────────────── */}
+          {!isWS && <>
+            <SectionLabel>RETAIL DETAILS</SectionLabel>
+            <div className="form-group" style={{ marginBottom:14 }}>
+              <label className="form-label" htmlFor="set-shop-name">SHOP / STORE NAME</label>
+              <input id="set-shop-name" className="form-input"
+                value={shopName} onChange={e => setShopName(e.target.value)}
+                placeholder="Your shop name" />
+            </div>
+            <div className="form-group" style={{ marginBottom:14 }}>
+              <label className="form-label" htmlFor="set-retailer-owner">RETAILER / OWNER NAME</label>
+              <input id="set-retailer-owner" className="form-input"
+                value={retailerOwner} onChange={e => setRetailerOwner(e.target.value)}
+                placeholder="Owner full name" />
+            </div>
+          </>}
+
+          {/* ── Preferences ────────────────────────────────────────────── */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="set-gst">DEFAULT GST %</label>
+              <input id="set-gst" className="form-input" type="number"
+                value={defaultGst} onChange={e => setDefaultGst(e.target.value)} min="0" max="28" />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="set-currency">CURRENCY SYMBOL</label>
+              <input id="set-currency" className="form-input"
+                value={currency} onChange={e => setCurrency(e.target.value)} placeholder="₹" />
+            </div>
+          </div>
+
+          <div className="form-group" style={{ marginBottom:14 }}>
+            <label className="form-label" htmlFor="set-low-stock">LOW STOCK THRESHOLD</label>
+            <input id="set-low-stock" className="form-input" type="number"
+              value={lowStockThreshold} onChange={e => setLowStockThreshold(e.target.value)} min="1" />
+          </div>
+
+          <div className="form-group" style={{ marginBottom:20 }}>
+            <label className="form-label" htmlFor="set-expiry-days">EXPIRY ALERT (DAYS BEFORE)</label>
+            <input id="set-expiry-days" className="form-input" type="number"
+              value={expiryAlertDays} onChange={e => setExpiryAlertDays(e.target.value)} min="1" />
+          </div>
+
+          {/* Save button */}
+          <button className="btn-primary"
+            style={{ width:'100%', padding:'13px', fontSize:15, fontWeight:700, marginBottom:10 }}
+            onClick={handleSave} disabled={saveMutation.isPending}>
+            {saveMutation.isPending ? 'Saving…' : 'Save Settings'}
+          </button>
+
+          {/* Logout button */}
+          <button
+            style={{ width:'100%', padding:'12px', fontSize:14, fontWeight:600,
+              background:'white', color:'#ef4444', border:'1.5px solid #fca5a5',
+              borderRadius:10, cursor:'pointer' }}
+            onClick={() => { logout(); window.location.href = '/login'; }}>
+            ⚙ Logout / Switch Account
+          </button>
+        </div>
+
+        {/* ── RIGHT: Data Management + App Info + QR ───────────────────── */}
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+
+          {/* Data Management */}
+          <div className="card" style={{ padding:'20px' }}>
+            <h4 style={{ fontSize:15, fontWeight:800, color:'var(--text)', margin:'0 0 14px' }}>
+              Data Management
+            </h4>
+
+            {/* Export */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontWeight:700, fontSize:13, marginBottom:4 }}>Export Data</div>
+              <div style={{ fontSize:12, color:'#64748b', marginBottom:8 }}>
+                Download your pharmacy data as a backup or spreadsheet.
+              </div>
+              <button className="btn-outline" style={{ width:'100%', justifyContent:'center', fontSize:13 }}
+                onClick={handleExport}>
+                ↓ Export Data
+              </button>
+            </div>
+
+            {/* Import */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontWeight:700, fontSize:13, marginBottom:4 }}>Import Data</div>
+              <div style={{ fontSize:12, color:'#64748b', marginBottom:8 }}>
+                Upload medicines, sales history, credits, or restore from a backup.
+              </div>
+              <button className="btn-outline" style={{ width:'100%', justifyContent:'center', fontSize:13 }}
+                onClick={() => showToast('Import: use the old app for now — coming in Phase 4', 'ok')}>
+                ↑ Import Data
+              </button>
+            </div>
+
+            {/* Reset */}
+            <div style={{ background:'#fff5f5', border:'1.5px solid #fecaca', borderRadius:10, padding:'12px' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6, fontWeight:700, fontSize:13, color:'#ef4444', marginBottom:4 }}>
+                ⚠ Reset All Data
+              </div>
+              <div style={{ fontSize:12, color:'#dc2626', marginBottom:10 }}>
+                This will permanently delete all data.
+              </div>
+              <button
+                style={{ width:'100%', padding:'10px', background:'#ef4444', color:'white',
+                  border:'none', borderRadius:8, fontWeight:700, fontSize:13, cursor:'pointer' }}
+                onClick={handleReset}>
+                Reset Everything
+              </button>
+            </div>
+          </div>
+
+          {/* App Info */}
+          <div className="card" style={{ padding:'20px' }}>
+            <h4 style={{ fontSize:15, fontWeight:800, color:'var(--text)', margin:'0 0 14px' }}>
+              App Info
+            </h4>
+            {[
+              { label:'Account',           value: lockedName || lockedGstin,              color:'#0ea5e9'   },
+              { label:'Total Medicines',   value: dash?.totalProducts  ?? '—',            color:null        },
+              { label:'Categories',        value: dash ? '—' : '—',                       color:null        },
+              { label:'Total Bills',       value: dash?.totalBills     ?? '—',            color:null        },
+              { label:'Expired Medicines', value: dash?.expiredCount   ?? '—',            color:'#ef4444'   },
+              { label:'Total Revenue',     value: dash ? `₹${parseFloat(dash.totalRevenue ?? 0).toFixed(2)}` : '—', color:'#10b981' },
+            ].map(row => (
+              <div key={row.label} style={{ display:'flex', justifyContent:'space-between',
+                alignItems:'center', padding:'6px 0',
+                borderBottom:'1px solid var(--border)', fontSize:13 }}>
+                <span style={{ color:'#64748b' }}>{row.label}</span>
+                <span style={{ fontWeight:700, color: row.color || 'var(--text)' }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* UPI QR Code */}
+          <div className="card" style={{ padding:'20px' }}>
+            <h4 style={{ fontSize:15, fontWeight:800, color:'var(--text)', margin:'0 0 4px' }}>
+              🔳 UPI QR Code
+            </h4>
+            <div style={{ fontSize:12, color:'#64748b', marginBottom:14 }}>
+              Upload your UPI payment QR code. It will appear on bills and in the billing panel.
+            </div>
+            {isWS ? (
+              <>
+                <SectionLabel>WHOLESALE PHARMA QR</SectionLabel>
+                <QrUpload label="" id="ws-qr" value={wholesaleUpiQr} onChange={setWholesaleUpiQr} />
+              </>
+            ) : (
+              <>
+                <SectionLabel>RETAIL PHARMACY QR</SectionLabel>
+                <QrUpload label="" id="rt-qr" value={retailUpiQr} onChange={setRetailUpiQr} />
+              </>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Toast */}
-      {toast && (
-        <div className={`toast ${toast.type || 'ok'}`} style={{ display:'block', position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)' }}>
-          {toast.msg}
+      {toastMsg && (
+        <div className={`toast ${toastType}`} style={{ display:'block' }}>
+          {toastMsg}
         </div>
       )}
     </div>
