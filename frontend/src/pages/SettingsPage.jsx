@@ -12,7 +12,7 @@ const fetchDashboard = () => client.get('/dashboard').then(r => r.data);
 function LockedField({ label, id, value }) {
   return (
     <div className="form-group">
-      <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor={id}>
+      <label className="form-label" htmlFor={id}>
         {label}
         <span style={{ marginLeft:8, fontSize:10, color:'#d97706', fontWeight:700, background:'#fef3c7', padding:'2px 7px', borderRadius:4, border:'1px solid #fcd34d' }}>
           🔒 LOCKED
@@ -244,13 +244,15 @@ export default function SettingsPage() {
             .settings-left-card .form-input { font-size:15px; padding:12px 14px; }
             .settings-left-card .form-group { margin-bottom:16px; }
           `}} />
-          <h3 style={{ fontSize:18, fontWeight:800, color:'var(--text)', margin:'0 0 20px' }}>
-            Pharmacy Identity
-          </h3>
+          <div style={{ fontSize:15, fontWeight:800, color:'#0ea5e9', textTransform:'uppercase',
+            letterSpacing:'.06em', marginBottom:16, paddingBottom:8,
+            borderBottom:'2px solid #e0f2fe' }}>
+            PHARMACY IDENTITY
+          </div>
 
           {/* Pharmacy Name */}
           <div className="form-group" style={{ marginBottom:14 }}>
-            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-name">PHARMACY NAME *</label>
+            <label className="form-label" htmlFor="set-name">PHARMACY NAME *</label>
             <input id="set-name" className="form-input" type="text"
               value={storeName} onChange={e => setStoreName(e.target.value)}
               placeholder="Your pharmacy name" />
@@ -261,7 +263,7 @@ export default function SettingsPage() {
 
           {/* Address */}
           <div className="form-group" style={{ marginBottom:14, marginTop:14 }}>
-            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-address">ADDRESS</label>
+            <label className="form-label" htmlFor="set-address">ADDRESS</label>
             <textarea id="set-address" className="form-input"
               value={address} onChange={e => setAddress(e.target.value)}
               placeholder="Pharmacy address"
@@ -270,7 +272,7 @@ export default function SettingsPage() {
 
           {/* Phone */}
           <div className="form-group" style={{ marginBottom:14 }}>
-            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-phone">PHONE</label>
+            <label className="form-label" htmlFor="set-phone">PHONE</label>
             <input id="set-phone" className="form-input" type="tel"
               value={phone} onChange={e => setPhone(e.target.value)}
               placeholder="+91XXXXXXXXXX" />
@@ -278,7 +280,7 @@ export default function SettingsPage() {
 
           {/* Email */}
           <div className="form-group" style={{ marginBottom:14 }}>
-            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-email">EMAIL</label>
+            <label className="form-label" htmlFor="set-email">EMAIL</label>
             <input id="set-email" className="form-input" type="email"
               value={email} onChange={e => setEmail(e.target.value)}
               placeholder="pharmacy@email.com" />
@@ -298,19 +300,19 @@ export default function SettingsPage() {
           {isWS && <>
             <SectionLabel>WHOLESALE DETAILS</SectionLabel>
             <div className="form-group" style={{ marginBottom:14 }}>
-              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-wholesaler">WHOLESALER (BUSINESS NAME)</label>
+              <label className="form-label" htmlFor="set-wholesaler">WHOLESALER (BUSINESS NAME)</label>
               <input id="set-wholesaler" className="form-input"
                 value={wholesaler} onChange={e => setWholesaler(e.target.value)}
                 placeholder="Wholesale business name" />
             </div>
             <div className="form-group" style={{ marginBottom:14 }}>
-              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-owner-name">OWNER NAME</label>
+              <label className="form-label" htmlFor="set-owner-name">OWNER NAME</label>
               <input id="set-owner-name" className="form-input"
                 value={ownerName} onChange={e => setOwnerName(e.target.value)}
                 placeholder="Owner full name" />
             </div>
             <div className="form-group" style={{ marginBottom:14 }}>
-              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-wholesaler-id">WHOLESALER ID</label>
+              <label className="form-label" htmlFor="set-wholesaler-id">WHOLESALER ID</label>
               <input id="set-wholesaler-id" className="form-input"
                 value={wholesalerId} onChange={e => setWholesalerId(e.target.value)}
                 placeholder="e.g. WHL-001" />
@@ -321,13 +323,13 @@ export default function SettingsPage() {
           {!isWS && <>
             <SectionLabel>RETAIL DETAILS</SectionLabel>
             <div className="form-group" style={{ marginBottom:14 }}>
-              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-shop-name">SHOP / STORE NAME</label>
+              <label className="form-label" htmlFor="set-shop-name">SHOP / STORE NAME</label>
               <input id="set-shop-name" className="form-input"
                 value={shopName} onChange={e => setShopName(e.target.value)}
                 placeholder="Your shop name" />
             </div>
             <div className="form-group" style={{ marginBottom:14 }}>
-              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-retailer-owner">RETAILER / OWNER NAME</label>
+              <label className="form-label" htmlFor="set-retailer-owner">RETAILER / OWNER NAME</label>
               <input id="set-retailer-owner" className="form-input"
                 value={retailerOwner} onChange={e => setRetailerOwner(e.target.value)}
                 placeholder="Owner full name" />
@@ -337,25 +339,25 @@ export default function SettingsPage() {
           {/* ── Preferences ────────────────────────────────────────────── */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
             <div className="form-group">
-              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-gst">DEFAULT GST %</label>
+              <label className="form-label" htmlFor="set-gst">DEFAULT GST %</label>
               <input id="set-gst" className="form-input" type="number"
                 value={defaultGst} onChange={e => setDefaultGst(e.target.value)} min="0" max="28" />
             </div>
             <div className="form-group">
-              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-currency">CURRENCY SYMBOL</label>
+              <label className="form-label" htmlFor="set-currency">CURRENCY SYMBOL</label>
               <input id="set-currency" className="form-input"
                 value={currency} onChange={e => setCurrency(e.target.value)} placeholder="₹" />
             </div>
           </div>
 
           <div className="form-group" style={{ marginBottom:14 }}>
-            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-low-stock">LOW STOCK THRESHOLD</label>
+            <label className="form-label" htmlFor="set-low-stock">LOW STOCK THRESHOLD</label>
             <input id="set-low-stock" className="form-input" type="number"
               value={lowStockThreshold} onChange={e => setLowStockThreshold(e.target.value)} min="1" />
           </div>
 
           <div className="form-group" style={{ marginBottom:20 }}>
-            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-expiry-days">EXPIRY ALERT (DAYS BEFORE)</label>
+            <label className="form-label" htmlFor="set-expiry-days">EXPIRY ALERT (DAYS BEFORE)</label>
             <input id="set-expiry-days" className="form-input" type="number"
               value={expiryAlertDays} onChange={e => setExpiryAlertDays(e.target.value)} min="1" />
           </div>
@@ -378,7 +380,7 @@ export default function SettingsPage() {
         </div>
 
         {/* ── RIGHT: Data Management + App Info + QR ───────────────────── */}
-        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <div className="settings-right" style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
           {/* Data Management */}
           <div className="card" style={{ padding:'20px' }}>
@@ -388,10 +390,8 @@ export default function SettingsPage() {
 
             {/* Export */}
             <div style={{ marginBottom:12 }}>
-              <div style={{ fontWeight:700, fontSize:13, marginBottom:4 }}>Export Data</div>
-              <div style={{ fontSize:12, color:'#64748b', marginBottom:8 }}>
-                Download your pharmacy data as a backup or spreadsheet.
-              </div>
+              <div className="panel-label" style={{ marginBottom:4 }}>Export Data</div>
+              <div className="panel-desc" style={{ marginBottom:8 }}>Download your pharmacy data as a backup or spreadsheet.</div>
               <button className="btn-outline" style={{ width:'100%', justifyContent:'center', fontSize:13 }}
                 onClick={handleExport}>
                 ↓ Export Data
@@ -400,10 +400,8 @@ export default function SettingsPage() {
 
             {/* Import */}
             <div style={{ marginBottom:16 }}>
-              <div style={{ fontWeight:700, fontSize:13, marginBottom:4 }}>Import Data</div>
-              <div style={{ fontSize:12, color:'#64748b', marginBottom:8 }}>
-                Upload medicines, sales history, credits, or restore from a backup.
-              </div>
+              <div className="panel-label" style={{ marginBottom:4 }}>Import Data</div>
+              <div className="panel-desc" style={{ marginBottom:8 }}>Upload medicines, sales history, credits, or restore from a backup.</div>
               <button className="btn-outline" style={{ width:'100%', justifyContent:'center', fontSize:13 }}
                 onClick={() => showToast('Import: use the old app for now — coming in Phase 4', 'ok')}>
                 ↑ Import Data
@@ -412,10 +410,10 @@ export default function SettingsPage() {
 
             {/* Reset */}
             <div style={{ background:'#fff5f5', border:'1.5px solid #fecaca', borderRadius:10, padding:'12px' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:6, fontWeight:700, fontSize:13, color:'#ef4444', marginBottom:4 }}>
+              <div className="reset-title" style={{ display:'flex', alignItems:'center', gap:6, color:'#ef4444', marginBottom:4 }}>
                 ⚠ Reset All Data
               </div>
-              <div style={{ fontSize:12, color:'#dc2626', marginBottom:10 }}>
+              <div className="reset-desc" style={{ color:'#dc2626', marginBottom:10 }}>
                 This will permanently delete all data.
               </div>
               <button
@@ -440,10 +438,10 @@ export default function SettingsPage() {
               { label:'Expired Medicines', value: dash?.expiredCount   ?? '—',            color:'#ef4444'   },
               { label:'Total Revenue',     value: dash ? `₹${parseFloat(dash.totalRevenue ?? 0).toFixed(2)}` : '—', color:'#10b981' },
             ].map(row => (
-              <div key={row.label} style={{ display:'flex', justifyContent:'space-between',
-                alignItems:'center', padding:'6px 0',
-                borderBottom:'1px solid var(--border)', fontSize:13 }}>
-                <span style={{ color:'#64748b' }}>{row.label}</span>
+              <div key={row.label} className="info-row" style={{ display:'flex', justifyContent:'space-between',
+                alignItems:'center', padding:'8px 0',
+                borderBottom:'1px solid var(--border)' }}>
+                <span>{row.label}</span>
                 <span style={{ fontWeight:700, color: row.color || 'var(--text)' }}>{row.value}</span>
               </div>
             ))}
@@ -451,12 +449,8 @@ export default function SettingsPage() {
 
           {/* UPI QR Code */}
           <div className="card" style={{ padding:'20px' }}>
-            <h4 style={{ fontSize:15, fontWeight:800, color:'var(--text)', margin:'0 0 4px' }}>
-              🔳 UPI QR Code
-            </h4>
-            <div style={{ fontSize:12, color:'#64748b', marginBottom:14 }}>
-              Upload your UPI payment QR code. It will appear on bills and in the billing panel.
-            </div>
+            <h4 style={{ margin:'0 0 4px' }}>🔳 UPI QR Code</h4>
+            <div className="panel-desc" style={{ marginBottom:14 }}>Upload your UPI payment QR code. It will appear on bills and in the billing panel.</div>
             {isWS ? (
               <>
                 <SectionLabel>WHOLESALE PHARMA QR</SectionLabel>
