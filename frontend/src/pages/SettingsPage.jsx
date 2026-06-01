@@ -186,10 +186,10 @@ export default function SettingsPage() {
     saveMutation.mutate({
       storeName:         storeName.trim() || 'My Pharmacy',
       address,           phone,           email,
-      defaultGst:        parseFloat(defaultGst)      || 12,
-      currency:          currency                    || '₹',
-      lowStockThreshold: parseInt(lowStockThreshold) || 10,
-      expiryAlertDays:   parseInt(expiryAlertDays)   || 90,
+      defaultGst:        parseFloat(defaultGst)      >= 0 ? parseFloat(defaultGst)      : 12,
+      currency:          currency.trim()             || '₹',
+      lowStockThreshold: parseInt(lowStockThreshold) >  0 ? parseInt(lowStockThreshold) : 10,
+      expiryAlertDays:   parseInt(expiryAlertDays)   >  0 ? parseInt(expiryAlertDays)   : 90,
       wholesaler,        ownerName,       wholesalerId,
       shopName,          retailerOwner,
       wholesaleUpiQr,    retailUpiQr,
@@ -339,7 +339,7 @@ export default function SettingsPage() {
           {/* ── Preferences ────────────────────────────────────────────── */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
             <div className="form-group">
-              <label className="form-label" htmlFor="set-gst">DEFAULT GST %</label>
+              <label className="form-label" htmlFor="set-gst">GST %</label>
               <input id="set-gst" className="form-input" type="number"
                 value={defaultGst} onChange={e => setDefaultGst(e.target.value)} min="0" max="28" />
             </div>
