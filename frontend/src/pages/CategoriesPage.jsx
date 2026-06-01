@@ -1,28 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import client from '../api/client';
 
-// ── Fetch helpers ─────────────────────────────────────────────────────────────
 const fetchCategories = () => client.get('/categories').then(r => r.data);
 const fetchProducts   = () => client.get('/products').then(r => r.data);
+const fetchAnalysis   = () => client.get('/analysis?days=365').then(r => r.data);
 
-export default function CategoriesPage({ onAddCategory }) {
+export default function CategoriesPage() {
   const qc = useQueryClient();
-  const [name, setName]     = useState('');
-  const [desc, setDesc]     = useState('');
+
+  // Form state
+  const [name,   setName]   = useState('');
+  const [desc,   setDesc]   = useState('');
   const [editId, setEditId] = useState('');
-  const [error, setError]   = useState('');
+  const [error,  setError]  = useState('');
 
   const { data: categories = [], isLoading } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
   const { data: products   = [] }            = useQuery({ queryKey: ['products'],   queryFn: fetchProducts   });
+  const { data: analysis   = {} }            = useQuery({ queryKey: ['analysis', 365], queryFn: fetchAnalysis, staleTime: 120_000 });
 
-  // product count per category — mirrors getCatName logic in app.js
+  // Product count per category
   const countMap = {};
   products.forEach(p => { countMap[p.category] = (countMap[p.category] || 0) + 1; });
 
-  // category revenue — mirrors cat-stats in renderCategories()
-  // NOTE: revenue calculation is done by /api/analysis on backend
-  // Here we just show product counts — revenue is shown on Analysis page
+  // Revenue per category from /api/analysis — mirrors catRev in app.js
+  const catRevMap = {};
+  (analysis.categorySales || []).forEach(c => { catRevMap[c.name] = c.revenue; });
+  const totalRev = Object.values(catRevMap).reduce((s, v) => s + v, 0);
+
   function resetForm() { setName(''); setDesc(''); setEditId(''); setError(''); }
 
   const saveMutation = useMutation({
@@ -64,79 +69,112 @@ export default function CategoriesPage({ onAddCategory }) {
   }
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ padding:'20px 24px', display:'grid', gridTemplateColumns:'1fr 340px', gap:20, alignItems:'start' }}>
 
-      {/* Add / Edit form */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-header">
-          <h3 className="card-title">{editId ? '✏️ Edit Category' : '+ New Category'}</h3>
+      {/* ── LEFT: Manage Categories ────────────────────────────────────── */}
+      <div className="card" style={{ padding:'20px' }}>
+        <h3 style={{ fontSize:16, fontWeight:800, color:'var(--text)', margin:'0 0 16px' }}>
+          Manage Categories
+        </h3>
+
+        {/* Form */}
+        <div className="form-group" style={{ marginBottom:12 }}>
+          <label className="form-label">CATEGORY NAME *</label>
+          <input id="cat-name-input" className="form-input" type="text"
+            placeholder="e.g. Tablets, Syrups…"
+            value={name} onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSave()} />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px 20px' }}>
-          <div className="form-group">
-            <label className="form-label">Category Name *</label>
-            <input id="cat-name-input" className="form-input" type="text"
-              placeholder="e.g. Antibiotics, Vitamins…"
-              value={name} onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSave()} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Description (optional)</label>
-            <input className="form-input" type="text"
-              placeholder="Short description"
-              value={desc} onChange={e => setDesc(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSave()} />
-          </div>
+        <div className="form-group" style={{ marginBottom:12 }}>
+          <label className="form-label">DESCRIPTION</label>
+          <input className="form-input" type="text"
+            placeholder="Optional description"
+            value={desc} onChange={e => setDesc(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSave()} />
         </div>
-        {error && <div style={{ color:'#ef4444', fontSize:13, padding:'0 20px 8px', fontWeight:600 }}>{error}</div>}
-        <div style={{ display:'flex', gap:8, padding:'0 20px 16px' }}>
-          <button className="btn-primary" onClick={handleSave} disabled={saveMutation.isPending}>
-            {saveMutation.isPending ? 'Saving…' : editId ? 'Update Category' : '+ Add Category'}
+        {error && <div style={{ color:'#ef4444', fontSize:13, fontWeight:600, marginBottom:8 }}>{error}</div>}
+        <div style={{ display:'flex', gap:8, marginBottom:20 }}>
+          <button className="btn-primary" style={{ flex:1, justifyContent:'center' }}
+            onClick={handleSave} disabled={saveMutation.isPending}>
+            {saveMutation.isPending ? 'Saving…' : editId ? 'Update Category' : 'Save Category'}
           </button>
           {editId && (
             <button className="btn-outline" onClick={resetForm}>Cancel</button>
           )}
         </div>
-      </div>
 
-      {/* Categories list */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">All Categories</h3>
-          <span className="badge badge-blue">{categories.length} total</span>
-        </div>
-
+        {/* Category list */}
         {isLoading ? (
-          <div style={{ padding: 32, textAlign:'center', color:'#94a3b8' }}>Loading…</div>
+          <div style={{ textAlign:'center', color:'#94a3b8', padding:20 }}>Loading…</div>
         ) : categories.length === 0 ? (
-          <div style={{ padding: 32, textAlign:'center', color:'#94a3b8', fontStyle:'italic' }}>
-            No categories yet. Add your first category above.
+          <div style={{ textAlign:'center', color:'#94a3b8', fontStyle:'italic', padding:20 }}>
+            No categories yet
           </div>
         ) : (
-          <div style={{ padding: '8px 16px 16px' }}>
-            <div id="categories-list" style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {categories.map(cat => {
-                const count = countMap[cat.id] || 0;
+          <div id="categories-list" style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {categories.map(cat => {
+              const count = countMap[cat.id] || 0;
+              return (
+                <div key={cat.id} className="cat-item">
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div className="cat-item-name">{cat.name}</div>
+                    {cat.desc && <div className="cat-item-desc">{cat.desc}</div>}
+                    <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>
+                      {count} medicine{count !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+                    <button className="btn-icon" onClick={() => handleEdit(cat)}>✏️</button>
+                    <button className="btn-icon" onClick={() => handleDelete(cat)}
+                      disabled={deleteMutation.isPending}>🗑️</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── RIGHT: Category Stats ──────────────────────────────────────── */}
+      <div className="card" style={{ padding:'20px' }}>
+        <h3 style={{ fontSize:16, fontWeight:800, color:'var(--text)', margin:'0 0 16px' }}>
+          Category Stats
+        </h3>
+
+        {categories.length === 0 ? (
+          <div style={{ textAlign:'center', color:'#94a3b8', fontStyle:'italic', padding:20 }}>
+            No categories yet
+          </div>
+        ) : (
+          <div id="cat-stats" style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {categories
+              .sort((a, b) => (catRevMap[b.name] || 0) - (catRevMap[a.name] || 0))
+              .map(cat => {
+                const rev  = catRevMap[cat.name] || 0;
+                const cnt  = countMap[cat.id]    || 0;
+                const pct  = totalRev > 0 ? ((rev / totalRev) * 100).toFixed(1) : '0';
                 return (
-                  <div key={cat.id} className="cat-item">
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="cat-item-name">{cat.name}</div>
-                      {cat.desc && <div className="cat-item-desc">{cat.desc}</div>}
-                      <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>
-                        {count} medicine{count !== 1 ? 's' : ''}
+                  <div key={cat.id} style={{ padding:'12px', background:'#f8fafc', borderRadius:10, border:'1px solid var(--border)' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                      <div style={{ fontWeight:600, fontSize:13.5 }}>{cat.name}</div>
+                      <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:'var(--accent)', fontWeight:700 }}>
+                        ₹{parseFloat(rev).toFixed(2)}
                       </div>
                     </div>
-                    <div style={{ display:'flex', gap:4, flexShrink:0 }}>
-                      <button className="btn-icon" onClick={() => handleEdit(cat)}>✏️</button>
-                      <button className="btn-icon" onClick={() => handleDelete(cat)}
-                        disabled={deleteMutation.isPending}>🗑️</button>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#94a3b8', marginBottom:6 }}>
+                      <span>{cnt} medicines</span>
+                      <span>{pct}% of revenue</span>
+                    </div>
+                    <div style={{ background:'#e2e8f0', borderRadius:99, height:5 }}>
+                      <div style={{ width:`${pct}%`, background:'linear-gradient(90deg,#0ea5e9,#38bdf8)', height:5, borderRadius:99, transition:'width .4s' }} />
                     </div>
                   </div>
                 );
               })}
-            </div>
           </div>
         )}
       </div>
+
     </div>
   );
 }
