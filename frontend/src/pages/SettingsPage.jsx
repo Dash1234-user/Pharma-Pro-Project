@@ -12,9 +12,9 @@ const fetchDashboard = () => client.get('/dashboard').then(r => r.data);
 function LockedField({ label, id, value }) {
   return (
     <div className="form-group">
-      <label className="form-label" htmlFor={id}>
+      <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor={id}>
         {label}
-        <span style={{ marginLeft:6, fontSize:10, color:'#d97706', fontWeight:700, background:'#fef3c7', padding:'1px 6px', borderRadius:4, border:'1px solid #fcd34d' }}>
+        <span style={{ marginLeft:8, fontSize:10, color:'#d97706', fontWeight:700, background:'#fef3c7', padding:'2px 7px', borderRadius:4, border:'1px solid #fcd34d' }}>
           🔒 LOCKED
         </span>
       </label>
@@ -92,8 +92,9 @@ function QrUpload({ label, id, value, onChange }) {
 // ── Section header (matches old UI) ──────────────────────────────────────────
 function SectionLabel({ children }) {
   return (
-    <div style={{ fontSize:12, fontWeight:800, color:'#0ea5e9', textTransform:'uppercase',
-      letterSpacing:'.08em', marginTop:8, marginBottom:4 }}>
+    <div style={{ fontSize:15, fontWeight:800, color:'#0ea5e9', textTransform:'uppercase',
+      letterSpacing:'.06em', marginTop:24, marginBottom:16,
+      paddingBottom:8, borderBottom:'2px solid #e0f2fe' }}>
       {children}
     </div>
   );
@@ -237,15 +238,19 @@ export default function SettingsPage() {
     <div style={{ padding:'20px 24px' }}>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:24, alignItems:'start' }}>
 
-        {/* ── LEFT: Pharmacy Configuration ────────────────────────────── */}
-        <div className="card" style={{ padding:'24px' }}>
+        {/* ── LEFT: Pharmacy Identity ────────────────────────────── */}
+        <div className="card settings-left-card" style={{ padding:'24px' }}>
+          <style dangerouslySetInnerHTML={{ __html:`
+            .settings-left-card .form-input { font-size:15px; padding:12px 14px; }
+            .settings-left-card .form-group { margin-bottom:16px; }
+          `}} />
           <h3 style={{ fontSize:18, fontWeight:800, color:'var(--text)', margin:'0 0 20px' }}>
-            Pharmacy Configuration
+            Pharmacy Identity
           </h3>
 
           {/* Pharmacy Name */}
           <div className="form-group" style={{ marginBottom:14 }}>
-            <label className="form-label" htmlFor="set-name">PHARMACY NAME *</label>
+            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-name">PHARMACY NAME *</label>
             <input id="set-name" className="form-input" type="text"
               value={storeName} onChange={e => setStoreName(e.target.value)}
               placeholder="Your pharmacy name" />
@@ -256,7 +261,7 @@ export default function SettingsPage() {
 
           {/* Address */}
           <div className="form-group" style={{ marginBottom:14, marginTop:14 }}>
-            <label className="form-label" htmlFor="set-address">ADDRESS</label>
+            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-address">ADDRESS</label>
             <textarea id="set-address" className="form-input"
               value={address} onChange={e => setAddress(e.target.value)}
               placeholder="Pharmacy address"
@@ -265,7 +270,7 @@ export default function SettingsPage() {
 
           {/* Phone */}
           <div className="form-group" style={{ marginBottom:14 }}>
-            <label className="form-label" htmlFor="set-phone">PHONE</label>
+            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-phone">PHONE</label>
             <input id="set-phone" className="form-input" type="tel"
               value={phone} onChange={e => setPhone(e.target.value)}
               placeholder="+91XXXXXXXXXX" />
@@ -273,7 +278,7 @@ export default function SettingsPage() {
 
           {/* Email */}
           <div className="form-group" style={{ marginBottom:14 }}>
-            <label className="form-label" htmlFor="set-email">EMAIL</label>
+            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-email">EMAIL</label>
             <input id="set-email" className="form-input" type="email"
               value={email} onChange={e => setEmail(e.target.value)}
               placeholder="pharmacy@email.com" />
@@ -293,19 +298,19 @@ export default function SettingsPage() {
           {isWS && <>
             <SectionLabel>WHOLESALE DETAILS</SectionLabel>
             <div className="form-group" style={{ marginBottom:14 }}>
-              <label className="form-label" htmlFor="set-wholesaler">WHOLESALER (BUSINESS NAME)</label>
+              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-wholesaler">WHOLESALER (BUSINESS NAME)</label>
               <input id="set-wholesaler" className="form-input"
                 value={wholesaler} onChange={e => setWholesaler(e.target.value)}
                 placeholder="Wholesale business name" />
             </div>
             <div className="form-group" style={{ marginBottom:14 }}>
-              <label className="form-label" htmlFor="set-owner-name">OWNER NAME</label>
+              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-owner-name">OWNER NAME</label>
               <input id="set-owner-name" className="form-input"
                 value={ownerName} onChange={e => setOwnerName(e.target.value)}
                 placeholder="Owner full name" />
             </div>
             <div className="form-group" style={{ marginBottom:14 }}>
-              <label className="form-label" htmlFor="set-wholesaler-id">WHOLESALER ID</label>
+              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-wholesaler-id">WHOLESALER ID</label>
               <input id="set-wholesaler-id" className="form-input"
                 value={wholesalerId} onChange={e => setWholesalerId(e.target.value)}
                 placeholder="e.g. WHL-001" />
@@ -316,13 +321,13 @@ export default function SettingsPage() {
           {!isWS && <>
             <SectionLabel>RETAIL DETAILS</SectionLabel>
             <div className="form-group" style={{ marginBottom:14 }}>
-              <label className="form-label" htmlFor="set-shop-name">SHOP / STORE NAME</label>
+              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-shop-name">SHOP / STORE NAME</label>
               <input id="set-shop-name" className="form-input"
                 value={shopName} onChange={e => setShopName(e.target.value)}
                 placeholder="Your shop name" />
             </div>
             <div className="form-group" style={{ marginBottom:14 }}>
-              <label className="form-label" htmlFor="set-retailer-owner">RETAILER / OWNER NAME</label>
+              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-retailer-owner">RETAILER / OWNER NAME</label>
               <input id="set-retailer-owner" className="form-input"
                 value={retailerOwner} onChange={e => setRetailerOwner(e.target.value)}
                 placeholder="Owner full name" />
@@ -332,25 +337,25 @@ export default function SettingsPage() {
           {/* ── Preferences ────────────────────────────────────────────── */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
             <div className="form-group">
-              <label className="form-label" htmlFor="set-gst">DEFAULT GST %</label>
+              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-gst">DEFAULT GST %</label>
               <input id="set-gst" className="form-input" type="number"
                 value={defaultGst} onChange={e => setDefaultGst(e.target.value)} min="0" max="28" />
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="set-currency">CURRENCY SYMBOL</label>
+              <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-currency">CURRENCY SYMBOL</label>
               <input id="set-currency" className="form-input"
                 value={currency} onChange={e => setCurrency(e.target.value)} placeholder="₹" />
             </div>
           </div>
 
           <div className="form-group" style={{ marginBottom:14 }}>
-            <label className="form-label" htmlFor="set-low-stock">LOW STOCK THRESHOLD</label>
+            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-low-stock">LOW STOCK THRESHOLD</label>
             <input id="set-low-stock" className="form-input" type="number"
               value={lowStockThreshold} onChange={e => setLowStockThreshold(e.target.value)} min="1" />
           </div>
 
           <div className="form-group" style={{ marginBottom:20 }}>
-            <label className="form-label" htmlFor="set-expiry-days">EXPIRY ALERT (DAYS BEFORE)</label>
+            <label style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'.06em', display:'block', marginBottom:6 }} htmlFor="set-expiry-days">EXPIRY ALERT (DAYS BEFORE)</label>
             <input id="set-expiry-days" className="form-input" type="number"
               value={expiryAlertDays} onChange={e => setExpiryAlertDays(e.target.value)} min="1" />
           </div>
