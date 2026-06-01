@@ -102,7 +102,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 
 /* ══ Forms ══ */
 .form-group{display:flex;flex-direction:column;gap:5px;position:relative;}
-.form-group label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;}
+.form-group label{font-size:13.5px;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.06em;}
 .form-input{padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);background:var(--bg);outline:none;transition:all .18s;width:100%;}
 .form-input:focus{border-color:#0ea5e9;box-shadow:0 0 0 3px rgba(249,115,22,.1);background:white;}
 .input-sm{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);background:var(--bg);outline:none;transition:all .18s;}
@@ -615,3 +615,13 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 }
 .form-hint{font-size:12px;color:#64748b;margin-top:2px;line-height:1.4;}
 .form-error{font-size:12.5px;color:#ef4444;margin-top:2px;font-weight:700;}
+
+/* Settings right panel — Data Management, App Info, UPI QR */
+.settings-right h4{font-size:17px;font-weight:800;}
+.settings-right .panel-label{font-size:14px;font-weight:700;color:var(--text);}
+.settings-right .panel-desc{font-size:13px;color:#64748b;line-height:1.5;}
+.settings-right .info-row{font-size:14px;padding:8px 0;}
+.settings-right .info-row span{font-size:14px;color:#64748b;}
+.settings-right .info-row strong{font-size:14px;font-weight:700;}
+.settings-right .reset-title{font-size:14px;font-weight:800;}
+.settings-right .reset-desc{font-size:13px;}
