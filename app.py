@@ -2365,15 +2365,19 @@ def get_credits_summary():
     conn     = get_db()
 
     rows = conn.execute(
-        "SELECT amount, status FROM credits "
+        "SELECT amount, COALESCE(final_amount, 0) as final_amount, status FROM credits "
         "WHERE user_id=%s AND partition IN ('wholesale', 'both')",
         (user_id,)
     ).fetchall()
     conn.close()
 
-    total_amt   = round(sum(r["amount"] for r in rows), 2)
-    pending_amt = round(sum(r["amount"] for r in rows if r["status"] == "Pending"), 2)
-    cleared_amt = round(sum(r["amount"] for r in rows if r["status"] == "Cleared"), 2)
+    def _a(r):
+        fa = r["final_amount"]
+        return fa if fa > 0 else (r["amount"] or 0)
+
+    total_amt   = round(sum(_a(r) for r in rows), 2)
+    pending_amt = round(sum(_a(r) for r in rows if r["status"] == "Pending"), 2)
+    cleared_amt = round(sum(_a(r) for r in rows if r["status"] == "Cleared"), 2)
 
     return jsonify({
         "totalAmount":   total_amt,
