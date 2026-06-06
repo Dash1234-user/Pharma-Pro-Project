@@ -812,6 +812,12 @@ def _bill_out(b, conn):
     }
 
 def _credit_out(c):
+    keys = c.keys() if hasattr(c, "keys") else []
+    items = []
+    try:
+        items = __import__("json").loads(c["items_json"]) if "items_json" in keys and c["items_json"] else []
+    except Exception:
+        pass
     return {
         "id":             c["id"],
         "date":           c["date"]            or "",
@@ -822,7 +828,13 @@ def _credit_out(c):
         "amount":         c["amount"]          or 0,
         "method":         c["method"]          or "Cash",
         "status":         c["status"]          or "Pending",
-        "partition":      c["partition"] if "partition" in c.keys() else PARTITION_WS,
+        "partition":      c["partition"] if "partition" in keys else PARTITION_WS,
+        "email":          c["email"]           if "email"           in keys else "",
+        "items":          items,
+        "gstAmount":      float(c["gst_amount"])      if "gst_amount"      in keys else 0,
+        "discountAmount": float(c["discount_amount"]) if "discount_amount" in keys else 0,
+        "finalAmount":    float(c["final_amount"])    if "final_amount"    in keys else (c["amount"] or 0),
+        "notes":          c["notes"]           if "notes"           in keys else "",
     }
 
 def _shop_credit_out(s):
@@ -2147,28 +2159,132 @@ def add_credit():
     d = request.get_json()
     if not d.get("shopName") or not d.get("shopkeeperName"):
         return jsonify({"error": "Shop name and shopkeeper name are required"}), 400
-    new_id = d.get("id") or uid()
-    conn   = get_db()
+    new_id   = d.get("id") or uid()
+    items    = d.get("items", [])
+    items_js = json.dumps(items) if items else "[]"
+    # amount = sum of all item amounts (raw subtotal before gst/discount)
+    raw_amt  = float(d.get("amount", sum(float(it.get("amount",0)) for it in items) if items else 0))
+    gst_amt  = float(d.get("gstAmount",      0))
+    disc_amt = float(d.get("discountAmount",  0))
+    final    = float(d.get("finalAmount",     raw_amt + gst_amt - disc_amt))
+    conn     = get_db()
     conn.execute("""
         INSERT INTO credits
-          (id,date,shop_name,shopkeeper_name,phone,for_item,amount,method,status,partition)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+          (id,date,shop_name,shopkeeper_name,phone,for_item,amount,method,status,partition,
+           email,items_json,gst_amount,discount_amount,final_amount,notes)
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
         new_id,
         d.get("date") or today_str(),
         d.get("shopName",       ""),
         d.get("shopkeeperName", ""),
         d.get("phone",          ""),
-        d.get("forItem",        ""),
-        float(d.get("amount",   0)),
+        d.get("forItem",        ""),   # kept for legacy; items_json is the real store
+        raw_amt,
         d.get("method",         "Cash"),
         d.get("status",         "Pending"),
-        PARTITION_WS,   # always wholesale
+        PARTITION_WS,
+        d.get("email",          ""),
+        items_js,
+        gst_amt,
+        disc_amt,
+        final,
+        d.get("notes",          ""),
     ))
     conn.commit()
     r = conn.execute("SELECT * FROM credits WHERE id=%s", (new_id,)).fetchone()
     conn.close()
     return jsonify(_credit_out(r)), 201
+
+
+@app.route('/api/credits/<credit_id>/email', methods=['PATCH'])
+@jwt_required()
+@require_json
+def update_credit_email(credit_id):
+    """Add or update email on an existing credit record."""
+    d    = request.get_json()
+    email = d.get("email", "").strip()
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+    conn = get_db()
+    conn.execute("UPDATE credits SET email=%s WHERE id=%s", (email, credit_id))
+    conn.commit()
+    r = conn.execute("SELECT * FROM credits WHERE id=%s", (credit_id,)).fetchone()
+    conn.close()
+    if not r:
+        return jsonify({"error": "Credit not found"}), 404
+    return jsonify(_credit_out(r))
+
+
+@app.route('/api/credits/<credit_id>/send-email', methods=['POST'])
+@jwt_required()
+def send_credit_email(credit_id):
+    """Send the credit bill summary to the shopkeeper's email."""
+    conn = get_db()
+    r    = conn.execute("SELECT * FROM credits WHERE id=%s", (credit_id,)).fetchone()
+    conn.close()
+    if not r:
+        return jsonify({"error": "Credit not found"}), 404
+    email = r["email"] if "email" in r.keys() else ""
+    if not email:
+        return jsonify({"error": "No email on this credit record"}), 400
+
+    items    = []
+    try:
+        items = json.loads(r["items_json"]) if r.get("items_json") else []
+    except Exception:
+        pass
+
+    rows_html = "".join(
+        f"<tr><td style='padding:7px 10px;border-bottom:1px solid #e2e8f0'>{it.get('name','')}</td>"
+        f"<td style='padding:7px 10px;border-bottom:1px solid #e2e8f0'>{it.get('itemType','')}</td>"
+        f"<td style='padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:right'>₹{float(it.get('amount',0)):.2f}</td></tr>"
+        for it in items
+    ) if items else f"<tr><td colspan='3' style='padding:7px 10px'>{r.get('for_item','—')}</td></tr>"
+
+    gst_amt  = float(r["gst_amount"])  if "gst_amount"  in r.keys() else 0
+    disc_amt = float(r["discount_amount"]) if "discount_amount" in r.keys() else 0
+    final    = float(r["final_amount"]) if "final_amount" in r.keys() else float(r["amount"])
+    subtotal = float(r["amount"])
+
+    html = f"""
+    <div style="font-family:sans-serif;max-width:600px;margin:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+      <div style="background:#0f1f3d;color:white;padding:20px 28px">
+        <h2 style="margin:0;font-size:20px">PharmaCare Pro</h2>
+        <p style="margin:4px 0 0;opacity:.75;font-size:13px">Credit / Payment Due Notice</p>
+      </div>
+      <div style="padding:24px 28px">
+        <p style="font-size:15px">Dear <strong>{r.get('shopkeeper_name','')}</strong>,</p>
+        <p style="color:#64748b;font-size:13px">Here is your payment summary from <strong>{r.get('shop_name','')}</strong>.</p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px">
+          <thead>
+            <tr style="background:#f8fafc">
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0">Item</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0">Type</th>
+              <th style="padding:9px 10px;text-align:right;border-bottom:2px solid #e2e8f0">Amount</th>
+            </tr>
+          </thead>
+          <tbody>{rows_html}</tbody>
+        </table>
+        <table style="width:100%;font-size:13px;margin-top:8px">
+          <tr><td style="color:#64748b;padding:3px 0">Subtotal</td><td style="text-align:right">₹{subtotal:.2f}</td></tr>
+          {'<tr><td style="color:#64748b;padding:3px 0">GST</td><td style="text-align:right">+₹'+f'{gst_amt:.2f}'+'</td></tr>' if gst_amt else ''}
+          {'<tr><td style="color:#10b981;padding:3px 0">Discount</td><td style="text-align:right;color:#10b981">-₹'+f'{disc_amt:.2f}'+'</td></tr>' if disc_amt else ''}
+          <tr style="font-weight:700;font-size:16px;border-top:2px solid #e2e8f0">
+            <td style="padding:8px 0">Total Due</td><td style="text-align:right;color:#0ea5e9">₹{final:.2f}</td>
+          </tr>
+        </table>
+        <p style="margin-top:20px;font-size:12px;color:#94a3b8">Payment Method: {r.get('method','—')} · Status: {r.get('status','Pending')}</p>
+      </div>
+      <div style="background:#f8fafc;padding:14px 28px;font-size:11px;color:#94a3b8;text-align:center">
+        PharmaCare Pro · This is an automated payment notice
+      </div>
+    </div>"""
+
+    ok = _send_email(email, f"Payment Due – {r.get('shop_name','')} | PharmaCare Pro", html)
+    if not ok:
+        return jsonify({"error": "Email send failed — check RESEND_API_KEY or SMTP config"}), 500
+    return jsonify({"ok": True, "sentTo": email})
 
 
 @app.route('/api/credits/bulk', methods=['DELETE'])
