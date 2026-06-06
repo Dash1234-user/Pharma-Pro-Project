@@ -2143,11 +2143,31 @@ def get_credits():
     Returns credits for Wholesale Pharma partition only.
     These represent retailers/shops that owe money to this wholesaler.
     """
+    identity = _get_identity()
+    user_id  = identity['user_id']
+    filter_p = request.args.get('filter', 'all')
     conn = get_db()
-    rs   = conn.execute(
-        "SELECT * FROM credits WHERE user_id=%s AND partition IN ('wholesale', 'both') ORDER BY date DESC",
-        (user_id,)
-    ).fetchall()
+
+    if filter_p == '7':
+        rs = conn.execute(
+            "SELECT * FROM credits WHERE user_id=%s AND partition IN ('wholesale','both') "
+            "AND date >= CURRENT_DATE - INTERVAL '7 days' ORDER BY date DESC", (user_id,)
+        ).fetchall()
+    elif filter_p == '30':
+        rs = conn.execute(
+            "SELECT * FROM credits WHERE user_id=%s AND partition IN ('wholesale','both') "
+            "AND date >= date_trunc('month', CURRENT_DATE) ORDER BY date DESC", (user_id,)
+        ).fetchall()
+    elif filter_p == '90':
+        rs = conn.execute(
+            "SELECT * FROM credits WHERE user_id=%s AND partition IN ('wholesale','both') "
+            "AND date >= CURRENT_DATE - INTERVAL '90 days' ORDER BY date DESC", (user_id,)
+        ).fetchall()
+    else:
+        rs = conn.execute(
+        "SELECT * FROM credits WHERE user_id=%s AND partition IN ('wholesale','both') ORDER BY date DESC",
+            (user_id,)
+        ).fetchall()
     conn.close()
     return jsonify([_credit_out(r) for r in rs])
 
@@ -2156,7 +2176,9 @@ def get_credits():
 @jwt_required()
 @require_json
 def add_credit():
-    d = request.get_json()
+    d        = request.get_json()
+    identity = _get_identity()
+    user_id  = identity['user_id']
     if not d.get("shopName") or not d.get("shopkeeperName"):
         return jsonify({"error": "Shop name and shopkeeper name are required"}), 400
     new_id   = d.get("id") or uid()
@@ -2171,19 +2193,20 @@ def add_credit():
     conn.execute("""
         INSERT INTO credits
           (id,date,shop_name,shopkeeper_name,phone,for_item,amount,method,status,partition,
-           email,items_json,gst_amount,discount_amount,final_amount,notes)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+           user_id,email,items_json,gst_amount,discount_amount,final_amount,notes)
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
         new_id,
         d.get("date") or today_str(),
         d.get("shopName",       ""),
         d.get("shopkeeperName", ""),
         d.get("phone",          ""),
-        d.get("forItem",        ""),   # kept for legacy; items_json is the real store
+        d.get("forItem",        ""),
         raw_amt,
         d.get("method",         "Cash"),
         d.get("status",         "Pending"),
         PARTITION_WS,
+        user_id,
         d.get("email",          ""),
         items_js,
         gst_amt,
@@ -2365,19 +2388,15 @@ def get_credits_summary():
     conn     = get_db()
 
     rows = conn.execute(
-        "SELECT amount, COALESCE(final_amount, 0) as final_amount, status FROM credits "
+        "SELECT amount, status FROM credits "
         "WHERE user_id=%s AND partition IN ('wholesale', 'both')",
         (user_id,)
     ).fetchall()
     conn.close()
 
-    def _a(r):
-        fa = r["final_amount"]
-        return fa if fa > 0 else (r["amount"] or 0)
-
-    total_amt   = round(sum(_a(r) for r in rows), 2)
-    pending_amt = round(sum(_a(r) for r in rows if r["status"] == "Pending"), 2)
-    cleared_amt = round(sum(_a(r) for r in rows if r["status"] == "Cleared"), 2)
+    total_amt   = round(sum(r["amount"] for r in rows), 2)
+    pending_amt = round(sum(r["amount"] for r in rows if r["status"] == "Pending"), 2)
+    cleared_amt = round(sum(r["amount"] for r in rows if r["status"] == "Cleared"), 2)
 
     return jsonify({
         "totalAmount":   total_amt,
