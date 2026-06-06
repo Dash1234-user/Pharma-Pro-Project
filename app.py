@@ -2143,31 +2143,11 @@ def get_credits():
     Returns credits for Wholesale Pharma partition only.
     These represent retailers/shops that owe money to this wholesaler.
     """
-    identity = _get_identity()
-    user_id  = identity['user_id']
-    filter_p = request.args.get('filter', 'all')
     conn = get_db()
-
-    if filter_p == '7':
-        rs = conn.execute(
-            "SELECT * FROM credits WHERE user_id=%s AND partition IN ('wholesale','both') "
-            "AND date >= CURRENT_DATE - INTERVAL '7 days' ORDER BY date DESC", (user_id,)
-        ).fetchall()
-    elif filter_p == '30':
-        rs = conn.execute(
-            "SELECT * FROM credits WHERE user_id=%s AND partition IN ('wholesale','both') "
-            "AND date >= date_trunc('month', CURRENT_DATE) ORDER BY date DESC", (user_id,)
-        ).fetchall()
-    elif filter_p == '90':
-        rs = conn.execute(
-            "SELECT * FROM credits WHERE user_id=%s AND partition IN ('wholesale','both') "
-            "AND date >= CURRENT_DATE - INTERVAL '90 days' ORDER BY date DESC", (user_id,)
-        ).fetchall()
-    else:
-        rs = conn.execute(
-        "SELECT * FROM credits WHERE user_id=%s AND partition IN ('wholesale','both') ORDER BY date DESC",
-            (user_id,)
-        ).fetchall()
+    rs   = conn.execute(
+        "SELECT * FROM credits WHERE user_id=%s AND partition IN ('wholesale', 'both') ORDER BY date DESC",
+        (user_id,)
+    ).fetchall()
     conn.close()
     return jsonify([_credit_out(r) for r in rs])
 
@@ -2176,9 +2156,7 @@ def get_credits():
 @jwt_required()
 @require_json
 def add_credit():
-    d        = request.get_json()
-    identity = _get_identity()
-    user_id  = identity['user_id']
+    d = request.get_json()
     if not d.get("shopName") or not d.get("shopkeeperName"):
         return jsonify({"error": "Shop name and shopkeeper name are required"}), 400
     new_id   = d.get("id") or uid()
@@ -2193,20 +2171,19 @@ def add_credit():
     conn.execute("""
         INSERT INTO credits
           (id,date,shop_name,shopkeeper_name,phone,for_item,amount,method,status,partition,
-           user_id,email,items_json,gst_amount,discount_amount,final_amount,notes)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+           email,items_json,gst_amount,discount_amount,final_amount,notes)
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
         new_id,
         d.get("date") or today_str(),
         d.get("shopName",       ""),
         d.get("shopkeeperName", ""),
         d.get("phone",          ""),
-        d.get("forItem",        ""),
+        d.get("forItem",        ""),   # kept for legacy; items_json is the real store
         raw_amt,
         d.get("method",         "Cash"),
         d.get("status",         "Pending"),
         PARTITION_WS,
-        user_id,
         d.get("email",          ""),
         items_js,
         gst_amt,
@@ -2242,72 +2219,164 @@ def update_credit_email(credit_id):
 @app.route('/api/credits/<credit_id>/send-email', methods=['POST'])
 @jwt_required()
 def send_credit_email(credit_id):
-    """Send the credit bill summary to the shopkeeper's email."""
+    """Send the credit bill summary to the shopkeeper email via Resend."""
     conn = get_db()
     r    = conn.execute("SELECT * FROM credits WHERE id=%s", (credit_id,)).fetchone()
     conn.close()
     if not r:
         return jsonify({"error": "Credit not found"}), 404
-    email = r["email"] if "email" in r.keys() else ""
-    if not email:
+
+    keys     = r.keys() if hasattr(r, "keys") else []
+    to_email = (r["email"] if "email" in keys else "") or ""
+    if not to_email.strip():
         return jsonify({"error": "No email on this credit record"}), 400
 
-    items    = []
+    items = []
     try:
-        items = json.loads(r["items_json"]) if r.get("items_json") else []
+        raw = r["items_json"] if "items_json" in keys else ""
+        items = json.loads(raw) if raw else []
     except Exception:
-        pass
+        items = []
 
-    rows_html = "".join(
-        f"<tr><td style='padding:7px 10px;border-bottom:1px solid #e2e8f0'>{it.get('name','')}</td>"
-        f"<td style='padding:7px 10px;border-bottom:1px solid #e2e8f0'>{it.get('itemType','')}</td>"
-        f"<td style='padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:right'>₹{float(it.get('amount',0)):.2f}</td></tr>"
-        for it in items
-    ) if items else f"<tr><td colspan='3' style='padding:7px 10px'>{r.get('for_item','—')}</td></tr>"
+    shop_name      = r["shop_name"]       or ""
+    shopkeeper     = r["shopkeeper_name"] or ""
+    phone_no       = r["phone"]           or "—"
+    method         = r["method"]          or "—"
+    status_val     = r["status"]          or "Pending"
+    subtotal       = float(r["amount"]    or 0)
+    gst_amt        = float(r["gst_amount"]       if "gst_amount"       in keys else 0) or 0
+    disc_amt       = float(r["discount_amount"]  if "discount_amount"  in keys else 0) or 0
+    final_amt      = float(r["final_amount"]     if "final_amount"     in keys else subtotal) or subtotal
+    for_item_legacy= r["for_item"] or ""
 
-    gst_amt  = float(r["gst_amount"])  if "gst_amount"  in r.keys() else 0
-    disc_amt = float(r["discount_amount"]) if "discount_amount" in r.keys() else 0
-    final    = float(r["final_amount"]) if "final_amount" in r.keys() else float(r["amount"])
-    subtotal = float(r["amount"])
+    # Build items table rows
+    if items:
+        rows_html = "".join(
+            f"<tr>"
+            f"<td style='padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:600'>{it.get('name','')}</td>"
+            f"<td style='padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b'>{it.get('itemType','')}</td>"
+            f"<td style='padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-family:monospace'>₹{float(it.get('amount',0)):.2f}</td>"
+            f"</tr>"
+            for it in items
+        )
+    else:
+        rows_html = (
+            f"<tr><td colspan='3' style='padding:8px 12px;color:#64748b'>"
+            f"{for_item_legacy or '—'}</td></tr>"
+        )
 
-    html = f"""
-    <div style="font-family:sans-serif;max-width:600px;margin:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
-      <div style="background:#0f1f3d;color:white;padding:20px 28px">
-        <h2 style="margin:0;font-size:20px">PharmaCare Pro</h2>
-        <p style="margin:4px 0 0;opacity:.75;font-size:13px">Credit / Payment Due Notice</p>
-      </div>
-      <div style="padding:24px 28px">
-        <p style="font-size:15px">Dear <strong>{r.get('shopkeeper_name','')}</strong>,</p>
-        <p style="color:#64748b;font-size:13px">Here is your payment summary from <strong>{r.get('shop_name','')}</strong>.</p>
-        <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px">
-          <thead>
-            <tr style="background:#f8fafc">
-              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0">Item</th>
-              <th style="padding:9px 10px;text-align:left;border-bottom:2px solid #e2e8f0">Type</th>
-              <th style="padding:9px 10px;text-align:right;border-bottom:2px solid #e2e8f0">Amount</th>
-            </tr>
-          </thead>
-          <tbody>{rows_html}</tbody>
-        </table>
-        <table style="width:100%;font-size:13px;margin-top:8px">
-          <tr><td style="color:#64748b;padding:3px 0">Subtotal</td><td style="text-align:right">₹{subtotal:.2f}</td></tr>
-          {'<tr><td style="color:#64748b;padding:3px 0">GST</td><td style="text-align:right">+₹'+f'{gst_amt:.2f}'+'</td></tr>' if gst_amt else ''}
-          {'<tr><td style="color:#10b981;padding:3px 0">Discount</td><td style="text-align:right;color:#10b981">-₹'+f'{disc_amt:.2f}'+'</td></tr>' if disc_amt else ''}
-          <tr style="font-weight:700;font-size:16px;border-top:2px solid #e2e8f0">
-            <td style="padding:8px 0">Total Due</td><td style="text-align:right;color:#0ea5e9">₹{final:.2f}</td>
-          </tr>
-        </table>
-        <p style="margin-top:20px;font-size:12px;color:#94a3b8">Payment Method: {r.get('method','—')} · Status: {r.get('status','Pending')}</p>
-      </div>
-      <div style="background:#f8fafc;padding:14px 28px;font-size:11px;color:#94a3b8;text-align:center">
-        PharmaCare Pro · This is an automated payment notice
-      </div>
-    </div>"""
+    gst_row  = (f"<tr><td style='padding:3px 0;color:#64748b'>GST</td>"
+                f"<td style='text-align:right'>+₹{gst_amt:.2f}</td></tr>") if gst_amt > 0 else ""
+    disc_row = (f"<tr><td style='padding:3px 0;color:#10b981'>Discount</td>"
+                f"<td style='text-align:right;color:#10b981'>-₹{disc_amt:.2f}</td></tr>") if disc_amt > 0 else ""
 
-    ok = _send_email(email, f"Payment Due – {r.get('shop_name','')} | PharmaCare Pro", html)
+    html_body = f"""<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 0">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0"
+  style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;max-width:600px">
+
+  <!-- Header -->
+  <tr><td style="background:#0f1f3d;padding:24px 32px">
+    <p style="margin:0;color:#fff;font-size:22px;font-weight:700">PharmaCare Pro</p>
+    <p style="margin:4px 0 0;color:rgba(255,255,255,.65);font-size:13px">Credit / Payment Due Notice</p>
+  </td></tr>
+
+  <!-- Greeting -->
+  <tr><td style="padding:28px 32px 0">
+    <p style="margin:0;font-size:15px;color:#1e293b">
+      Dear <strong>{shopkeeper}</strong>,
+    </p>
+    <p style="margin:8px 0 0;font-size:13px;color:#64748b">
+      Here is your payment summary from <strong>{shop_name}</strong>.
+    </p>
+  </td></tr>
+
+  <!-- Meta -->
+  <tr><td style="padding:16px 32px 0">
+    <table width="100%" cellpadding="0" cellspacing="0"
+      style="background:#f8fafc;border-radius:8px;padding:12px 16px;font-size:13px">
+      <tr>
+        <td style="color:#64748b;padding:3px 0">Phone</td>
+        <td style="text-align:right;color:#1e293b">{phone_no}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:3px 0">Payment Method</td>
+        <td style="text-align:right"><strong>{method}</strong></td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:3px 0">Status</td>
+        <td style="text-align:right">
+          <span style="background:{'#fef2f2' if status_val=='Pending' else '#f0fdf4'};
+            color:{'#dc2626' if status_val=='Pending' else '#16a34a'};
+            padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700">
+            {status_val}
+          </span>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+
+  <!-- Items table -->
+  <tr><td style="padding:20px 32px 0">
+    <table width="100%" cellpadding="0" cellspacing="0"
+      style="border-collapse:collapse;font-size:13px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+      <thead>
+        <tr style="background:#f8fafc">
+          <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:11px;
+            text-transform:uppercase;letter-spacing:.05em;color:#64748b">Item</th>
+          <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:11px;
+            text-transform:uppercase;letter-spacing:.05em;color:#64748b">Type</th>
+          <th style="padding:10px 12px;text-align:right;border-bottom:2px solid #e2e8f0;font-size:11px;
+            text-transform:uppercase;letter-spacing:.05em;color:#64748b">Amount</th>
+        </tr>
+      </thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+  </td></tr>
+
+  <!-- Totals -->
+  <tr><td style="padding:16px 32px 0">
+    <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px">
+      <tr>
+        <td style="padding:3px 0;color:#64748b">Subtotal</td>
+        <td style="text-align:right;font-family:monospace">₹{subtotal:.2f}</td>
+      </tr>
+      {gst_row}
+      {disc_row}
+      <tr>
+        <td colspan="2">
+          <hr style="border:none;border-top:2px solid #e2e8f0;margin:10px 0">
+        </td>
+      </tr>
+      <tr>
+        <td style="font-size:17px;font-weight:800;color:#1e293b">Total Due</td>
+        <td style="text-align:right;font-size:20px;font-weight:800;
+          color:#0ea5e9;font-family:monospace">₹{final_amt:.2f}</td>
+      </tr>
+    </table>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="padding:28px 32px;text-align:center">
+    <p style="margin:0;font-size:11px;color:#94a3b8">
+      PharmaCare Pro &middot; This is an automated payment notice.
+      Please do not reply to this email.
+    </p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>"""
+
+    ok = _send_email(to_email.strip(), f"Payment Due – {shop_name} | PharmaCare Pro", html_body)
     if not ok:
-        return jsonify({"error": "Email send failed — check RESEND_API_KEY or SMTP config"}), 500
-    return jsonify({"ok": True, "sentTo": email})
+        return jsonify({"error": "Email send failed — check RESEND_API_KEY in your .env file"}), 500
+    return jsonify({"ok": True, "sentTo": to_email.strip()})
 
 
 @app.route('/api/credits/bulk', methods=['DELETE'])
