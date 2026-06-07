@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import client from '../api/client';
 import useSettingsStore from '../store/settingsStore';
@@ -78,6 +78,19 @@ function EmailPopup({creditId, onClose, onSaved}) {
 }
 
 // ── Add Credit Form ───────────────────────────────────────────────────────────
+// ── Top-level layout helpers — MUST be outside AddCreditForm to avoid remount ──
+function Row({children, cols='1fr 1fr'}) {
+  return <div style={{display:'grid',gridTemplateColumns:cols,gap:12,marginBottom:12}}>{children}</div>;
+}
+function FG({label, children}) {
+  return (
+    <div className="form-group" style={{margin:0}}>
+      {label && <label className="form-label">{label}</label>}
+      {children}
+    </div>
+  );
+}
+
 function AddCreditForm({onClose, onSaved}) {
   const [date,    setDate]    = useState(todayStr());
   const [shop,    setShop]    = useState('');
@@ -139,16 +152,6 @@ function AddCreditForm({onClose, onSaved}) {
     } catch(e) { setError(e.response?.data?.error||'Save failed'); }
     finally { setSaving(false); }
   }
-
-  const Row = ({children,cols='1fr 1fr'}) => (
-    <div style={{display:'grid',gridTemplateColumns:cols,gap:12,marginBottom:12}}>{children}</div>
-  );
-  const FG = ({label,children}) => (
-    <div className="form-group" style={{margin:0}}>
-      {label && <label className="form-label">{label}</label>}
-      {children}
-    </div>
-  );
 
   return (
     <Modal title="New Payment Receipt" onClose={onClose} wide
