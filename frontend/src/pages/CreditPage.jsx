@@ -665,10 +665,11 @@ function WholesaleCredit() {
 // ══════════════════════════════════════════════════════════════════════════════
 function RetailCredit() {
   const qc = useQueryClient();
-  const [toast,      setToast]      = useState('');
-  const [showPayNow, setShowPayNow] = useState(false);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selected,   setSelected]   = useState([]);
+  const [toast,       setToast]      = useState('');
+  const [showPayNow,  setShowPayNow] = useState(false);
+  const [selectMode,  setSelectMode] = useState(false);
+  const [selected,    setSelected]   = useState([]);
+  const [historyRec,  setHistoryRec] = useState(null);
 
   const { data: records = [], isLoading } = useQuery({
     queryKey: ['shop-credits'],
@@ -678,7 +679,10 @@ function RetailCredit() {
 
   const delMut = useMutation({
     mutationFn: (id) => client.delete(`/shop-credits/${id}`),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['shop-credits'] }),
+    onSuccess:  () => {
+      qc.invalidateQueries({ queryKey: ['shop-credits'] });
+      qc.invalidateQueries({ queryKey: ['shop-credits-summary'] });
+    },
   });
 
   function showT(msg) { setToast(msg); setTimeout(() => setToast(''), 3500); }
@@ -706,16 +710,15 @@ function RetailCredit() {
     showT(`${selected.length} record${selected.length > 1 ? 's' : ''} deleted ✓`);
   }
 
-  // Summary: latest record per supplierId
-  const seen = new Set();
-  const latest = records.filter(r => {
-    const key = (r.supplierId || '').toLowerCase() + '|' + (r.ownerName || '').toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key); return true;
+  // Summary from API — correct dedup happens server-side, case-insensitive
+  const { data: shopSummary = {} } = useQuery({
+    queryKey: ['shop-credits-summary'],
+    queryFn:  () => client.get('/shop-credits/summary').then(r => r.data),
+    staleTime: 30_000,
   });
-  const totalPurchase = latest.reduce((s, r) => s + (r.totalPurchase || 0), 0);
-  const totalPaid     = latest.reduce((s, r) => s + (r.paid || 0), 0);
-  const totalPending  = latest.reduce((s, r) => s + (r.pending || 0), 0);
+  const totalPurchase = shopSummary.totalPurchase || 0;
+  const totalPaid     = shopSummary.totalPaid     || 0;
+  const totalPending  = shopSummary.totalPending  || 0;
 
   return (
     <div style={{ padding: '20px 24px' }}>
@@ -725,9 +728,13 @@ function RetailCredit() {
           boxShadow: '0 4px 20px rgba(0,0,0,.2)' }}>{toast}</div>
       )}
 
+      {historyRec && (
+        <SupplierHistoryModal supplierId={historyRec} records={records}
+          onClose={() => setHistoryRec(null)} />
+      )}
       {showPayNow && (
         <PayNowModal records={records} onClose={() => setShowPayNow(false)}
-          onSaved={() => { qc.invalidateQueries({ queryKey: ['shop-credits'] }); showT('Record saved ✓'); }}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ['shop-credits'] }); qc.invalidateQueries({ queryKey: ['shop-credits-summary'] }); showT('Record saved ✓'); }}
           showToast={showT} />
       )}
 
@@ -800,6 +807,7 @@ function RetailCredit() {
                   <th style={{ minWidth: 120 }}>PENDING (TO BE PAID)</th>
                   <th style={{ minWidth: 130 }}>LAST PURCHASE DATE</th>
                   <th style={{ minWidth: 100 }}>STATUS</th>
+                  <th style={{ minWidth: 90 }}>ACTION</th>
                 </tr>
               </thead>
               <tbody id="retail-credit-tbody">
@@ -838,6 +846,14 @@ function RetailCredit() {
                           {r.status}
                         </span>
                       </td>
+                      <td>
+                        <button className="btn-icon"
+                          title="View payment history"
+                          onClick={() => setHistoryRec(r.supplierId)}
+                          style={{ fontSize: 16 }}>
+                          📋
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -845,6 +861,161 @@ function RetailCredit() {
             </table>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+
+// ── Supplier Payment History Modal ───────────────────────────────────────────
+function SupplierHistoryModal({ supplierId, records, onClose }) {
+  const history = records
+    .filter(r => (r.supplierId || '').toLowerCase() === supplierId.toLowerCase())
+    .sort((a, b) => new Date(b.billDate || b.lastPurchaseDate) - new Date(a.billDate || a.lastPurchaseDate));
+
+  if (!history.length) {
+    return (
+      <div className="modal-bg" onClick={onClose}>
+        <div className="modal-box" onClick={e => e.stopPropagation()}>
+          <div className="modal-hd">
+            <h2 style={{ margin: 0, fontSize: 16 }}>📋 Payment History — {supplierId}</h2>
+            <button className="modal-close" onClick={onClose}>✕</button>
+          </div>
+          <div style={{ padding: '20px 0', textAlign: 'center', color: '#94a3b8' }}>No records found.</div>
+        </div>
+      </div>
+    );
+  }
+
+  const supplier = history[0];
+
+  function printHistory() {
+    const rows = history.map((r, i) => `
+      <tr style="background:${i % 2 === 0 ? '#f8fafc' : 'white'}">
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0">${fmtDate(r.billDate || r.lastPurchaseDate)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-family:monospace">₹${parseFloat(r.totalPurchase || 0).toFixed(2)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-family:monospace;color:#10b981;font-weight:700">₹${parseFloat(r.paid || 0).toFixed(2)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-family:monospace;color:${r.pending > 0 ? '#ef4444' : '#10b981'};font-weight:700">₹${parseFloat(r.pending || 0).toFixed(2)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0">${r.paymentMode}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0">
+          <span style="background:${r.status === 'Cleared' ? '#f0fdf4' : '#fef2f2'};color:${r.status === 'Cleared' ? '#10b981' : '#ef4444'};padding:2px 10px;border-radius:99px;font-size:11px;font-weight:700">${r.status}</span>
+        </td>
+      </tr>`).join('');
+
+    const totalPaid    = history.reduce((s, r) => s + (r.paid || 0), 0);
+    const latestPend   = history[0].pending || 0;
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Payment History — ${supplierId}</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: Arial, sans-serif; padding: 32px; color: #1e293b; }
+      .hd { background: #0f1f3d; color: white; padding: 20px 28px; border-radius: 10px 10px 0 0; }
+      .hd h1 { font-size: 18px; } .hd p { font-size: 12px; opacity: .7; margin-top: 3px; }
+      .meta { background: #f8fafc; padding: 14px 20px; border: 1px solid #e2e8f0; border-top: none; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 13px; }
+      .meta .lbl { color: #64748b; font-size: 11px; } .meta .val { font-weight: 700; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      thead tr { background: #0ea5e9; }
+      th { padding: 9px 12px; text-align: left; color: white; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+      .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+      @media print { body { padding: 16px; } .no-print { display: none; } }
+    </style></head><body>
+    <div class="hd"><h1>PharmaCare Pro — Supplier Payment History</h1><p>Generated ${new Date().toLocaleString('en-IN')}</p></div>
+    <div class="meta">
+      <div><div class="lbl">Supplier Name</div><div class="val">${supplier.supplierName}</div></div>
+      <div><div class="lbl">Wholesaler ID</div><div class="val">${supplierId}</div></div>
+      <div><div class="lbl">Owner Name</div><div class="val">${supplier.ownerName}</div></div>
+      <div><div class="lbl">Total Paid (All Time)</div><div class="val" style="color:#10b981">₹${totalPaid.toFixed(2)}</div></div>
+      <div><div class="lbl">Current Pending</div><div class="val" style="color:${latestPend > 0 ? '#ef4444' : '#10b981'}">₹${latestPend.toFixed(2)}</div></div>
+      <div><div class="lbl">Total Records</div><div class="val">${history.length}</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Date</th><th>Total Purchase</th><th>Paid</th><th>Pending</th><th>Mode</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="footer">PharmaCare Pro · Supplier / Wholesaler Payment Statement</div>
+    </body></html>`;
+
+    const win = window.open('', '_blank', 'width=860,height=700,scrollbars=yes');
+    if (!win) { alert('Allow popups to print.'); return; }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 700);
+  }
+
+  const totalPaid  = history.reduce((s, r) => s + (r.paid || 0), 0);
+  const latestPend = history[0].pending || 0;
+
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal-box modal-bill" onClick={e => e.stopPropagation()}
+        style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="modal-hd">
+          <h2 style={{ margin: 0, fontSize: 16 }}>📋 Payment History — {supplierId}</h2>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Supplier meta */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10,
+          background: '#f8fafc', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: 13 }}>
+          <div><div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Supplier</div>
+               <div style={{ fontWeight: 700 }}>{supplier.supplierName}</div></div>
+          <div><div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Wholesaler ID</div>
+               <div style={{ fontWeight: 700, color: '#0ea5e9', fontFamily: "'JetBrains Mono',monospace" }}>{supplierId}</div></div>
+          <div><div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Owner</div>
+               <div style={{ fontWeight: 700 }}>{supplier.ownerName}</div></div>
+          <div><div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Total Paid</div>
+               <div style={{ fontWeight: 700, color: '#10b981', fontFamily: "'JetBrains Mono',monospace" }}>{cur(totalPaid)}</div></div>
+          <div><div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Current Pending</div>
+               <div style={{ fontWeight: 700, color: latestPend > 0 ? '#ef4444' : '#10b981', fontFamily: "'JetBrains Mono',monospace" }}>{cur(latestPend)}</div></div>
+          <div><div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Records</div>
+               <div style={{ fontWeight: 700 }}>{history.length}</div></div>
+        </div>
+
+        {/* History table */}
+        <div className="table-wrap" style={{ marginBottom: 16 }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th style={{ width: 36 }}>#</th>
+                <th style={{ minWidth: 110 }}>DATE</th>
+                <th style={{ minWidth: 120 }}>TOTAL PURCHASE</th>
+                <th style={{ minWidth: 100 }}>PAID</th>
+                <th style={{ minWidth: 110 }}>PENDING</th>
+                <th style={{ minWidth: 80 }}>MODE</th>
+                <th style={{ minWidth: 90 }}>STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((r, i) => (
+                <tr key={r.id} style={{ background: i === 0 ? '#f0fdf4' : '' }}>
+                  <td style={{ color: '#94a3b8', fontSize: 12 }}>{history.length - i}</td>
+                  <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtDate(r.billDate || r.lastPurchaseDate)}</td>
+                  <td style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700 }}>{cur(r.totalPurchase)}</td>
+                  <td style={{ fontFamily: "'JetBrains Mono',monospace", color: '#10b981', fontWeight: 700 }}>{cur(r.paid)}</td>
+                  <td style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700,
+                    color: r.pending > 0 ? '#ef4444' : '#10b981' }}>{cur(r.pending)}</td>
+                  <td><span className="badge badge-blue">{r.paymentMode}</span></td>
+                  <td>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 700,
+                      fontSize: 12, color: r.status === 'Cleared' ? '#10b981' : '#ef4444' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', display: 'inline-block',
+                        background: r.status === 'Cleared' ? '#10b981' : '#ef4444' }} />
+                      {r.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 16,
+          borderTop: '1px solid var(--border)' }}>
+          <button className="btn-outline" onClick={onClose}>Close</button>
+          <button className="btn-primary" onClick={printHistory}>🖨 Print / Save PDF</button>
+        </div>
       </div>
     </div>
   );
@@ -891,23 +1062,29 @@ function PayNowModal({ records, onClose, onSaved, showToast }) {
     if (!supplierId.trim() || !ownerName.trim()) {
       setError('Enter Wholesaler ID and Owner Name first'); return;
     }
-    // Find in local records first
-    const match = records.find(r =>
-      r.supplierId.toLowerCase() === supplierId.toLowerCase() &&
-      r.ownerName.toLowerCase()  === ownerName.toLowerCase()
+    const idLow    = supplierId.trim().toLowerCase();
+    const ownerLow = ownerName.trim().toLowerCase();
+
+    // Step 1: try local records — both ID AND owner name must match
+    const matchLocal = records.find(r =>
+      (r.supplierId || '').toLowerCase() === idLow &&
+      (r.ownerName  || '').toLowerCase() === ownerLow
     );
-    if (!match) {
-      // Try server
-      try {
-        const res = await client.get(`/shop-credits/fetch/${encodeURIComponent(supplierId)}`);
-        const m = res.data;
-        applyFetch(m);
-      } catch {
-        setError('No existing record found for this Wholesaler ID & Owner Name');
+    if (matchLocal) { applyFetch(matchLocal); return; }
+
+    // Step 2: try server fetch — validate BOTH fields
+    try {
+      const res = await client.get(`/shop-credits/fetch/${encodeURIComponent(supplierId.trim())}`);
+      const m = res.data;
+      // Strictly validate: owner name must also match
+      if ((m.ownerName || '').toLowerCase() !== ownerLow) {
+        setError(`❌ Incorrect details — Wholesaler ID "${supplierId.trim()}" exists but Owner Name "${ownerName.trim()}" does not match. Please verify.`);
+        return;
       }
-      return;
+      applyFetch(m);
+    } catch {
+      setError(`❌ No record found for Wholesaler ID "${supplierId.trim()}" with Owner Name "${ownerName.trim()}". Check your details.`);
     }
-    applyFetch(match);
   }
 
   function applyFetch(match) {
