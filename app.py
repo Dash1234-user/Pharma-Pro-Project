@@ -2568,6 +2568,8 @@ def get_shop_credits():
     Returns shop credits for retail partition only.
     These represent what this retail shop owes to suppliers/wholesalers.
     """
+    identity = _get_identity()
+    user_id  = identity['user_id']
     conn = get_db()
     rs   = conn.execute(
         "SELECT * FROM shop_credits WHERE user_id=%s AND partition IN ('retail', 'both') ORDER BY bill_date DESC",
@@ -2580,13 +2582,15 @@ def get_shop_credits():
 @app.route('/api/shop-credits/fetch/<supplier_id>', methods=['GET'])
 @jwt_required()
 def fetch_shop_credit_by_supplier(supplier_id):
+    identity = _get_identity()
+    user_id  = identity['user_id']
     conn = get_db()
     r    = conn.execute("""
         SELECT * FROM shop_credits
-        WHERE LOWER(supplier_id)=%s AND partition IN ('retail', 'both')
+        WHERE LOWER(supplier_id)=%s AND user_id=%s AND partition IN ('retail', 'both')
         ORDER BY bill_date DESC
         LIMIT 1
-    """, (supplier_id.lower(),)).fetchone()
+    """, (supplier_id.lower(), user_id)).fetchone()
     conn.close()
     if not r:
         return jsonify({"error": "No record found"}), 404
@@ -2597,7 +2601,9 @@ def fetch_shop_credit_by_supplier(supplier_id):
 @jwt_required()
 @require_json
 def add_shop_credit():
-    d = request.get_json()
+    d        = request.get_json()
+    identity = _get_identity()
+    user_id  = identity['user_id']
     if not d.get("supplierId") or not d.get("supplierName"):
         return jsonify({"error": "Supplier ID and name are required"}), 400
     new_id = d.get("id") or uid()
@@ -2605,8 +2611,8 @@ def add_shop_credit():
     conn.execute("""
         INSERT INTO shop_credits
           (id,supplier_id,supplier_name,owner_name,total_purchase,paid,
-           payment_mode,pending,last_purchase_date,bill_date,status,partition)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+           payment_mode,pending,last_purchase_date,bill_date,status,partition,user_id)
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
         new_id,
         d.get("supplierId",       ""),
@@ -2619,7 +2625,8 @@ def add_shop_credit():
         d.get("lastPurchaseDate") or today_str(),
         d.get("billDate")         or today_str(),
         d.get("status",           "Pending"),
-        PARTITION_RT,   # always retail
+        PARTITION_RT,
+        user_id,
     ))
     conn.commit()
     r = conn.execute("SELECT * FROM shop_credits WHERE id=%s", (new_id,)).fetchone()
