@@ -665,130 +665,182 @@ function WholesaleCredit() {
 // ══════════════════════════════════════════════════════════════════════════════
 function RetailCredit() {
   const qc = useQueryClient();
-  const [showForm,setShowForm] = useState(false);
-  const [form,setForm]         = useState({date:todayStr(),shopName:'',shopkeeperName:'',phone:'',forItem:'',amount:'',method:'UPI',status:'Pending'});
-  const [error,setError]       = useState('');
-  const [toast,setToast]       = useState('');
+  const [toast,      setToast]      = useState('');
+  const [showPayNow, setShowPayNow] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected,   setSelected]   = useState([]);
 
-  const {data:records=[], isLoading} = useQuery({
-    queryKey:['shop-credits'],
-    queryFn: ()=>client.get('/shop-credits').then(r=>r.data),
-    staleTime:30_000,
+  const { data: records = [], isLoading } = useQuery({
+    queryKey: ['shop-credits'],
+    queryFn:  () => client.get('/shop-credits').then(r => r.data),
+    staleTime: 30_000,
   });
-  const arr = Array.isArray(records)?records:(records.records||[]);
 
-  const addMut = useMutation({
-    mutationFn: p=>client.post('/shop-credits',p),
-    onSuccess:  ()=>{ qc.invalidateQueries({queryKey:['shop-credits']}); setShowForm(false);
-      setForm({date:todayStr(),shopName:'',shopkeeperName:'',phone:'',forItem:'',amount:'',method:'UPI',status:'Pending'}); setError('');
-      showT('✓ Record added'); },
-    onError:    e=>setError(e.response?.data?.error||'Save failed'),
-  });
   const delMut = useMutation({
-    mutationFn:id=>client.delete(`/shop-credits/${id}`),
-    onSuccess:()=>qc.invalidateQueries({queryKey:['shop-credits']}),
+    mutationFn: (id) => client.delete(`/shop-credits/${id}`),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ['shop-credits'] }),
   });
 
-  function showT(msg){setToast(msg);setTimeout(()=>setToast(''),3000);}
-  function handleAdd(){
-    setError('');
-    if(!form.shopName.trim()||!form.amount||parseFloat(form.amount)<=0){setError('Shop Name and Amount required');return;}
-    addMut.mutate({...form,amount:parseFloat(form.amount)});
+  function showT(msg) { setToast(msg); setTimeout(() => setToast(''), 3500); }
+
+  function toggleSelectMode() {
+    setSelectMode(p => !p);
+    setSelected([]);
   }
 
-  const totalAmt   = arr.reduce((s,r)=>s+(r.amount||r.paymentAmount||0),0);
-  const pendingAmt = arr.filter(r=>r.status==='Pending').reduce((s,r)=>s+(r.amount||r.paymentAmount||0),0);
-  const clearedAmt = arr.filter(r=>r.status==='Cleared').reduce((s,r)=>s+(r.amount||r.paymentAmount||0),0);
+  function toggleSelect(id) {
+    setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  }
+
+  function selectAll(checked) {
+    setSelected(checked ? records.map(r => r.id) : []);
+  }
+
+  async function deleteSelected() {
+    if (!selected.length) { showT('No records selected'); return; }
+    if (!window.confirm(`Delete ${selected.length} selected record${selected.length > 1 ? 's' : ''}? Cannot be undone.`)) return;
+    await Promise.all(selected.map(id => delMut.mutateAsync(id)));
+    setSelected([]);
+    setSelectMode(false);
+    qc.invalidateQueries({ queryKey: ['shop-credits'] });
+    showT(`${selected.length} record${selected.length > 1 ? 's' : ''} deleted ✓`);
+  }
+
+  // Summary: latest record per supplierId
+  const seen = new Set();
+  const latest = records.filter(r => {
+    const key = (r.supplierId || '').toLowerCase() + '|' + (r.ownerName || '').toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+  const totalPurchase = latest.reduce((s, r) => s + (r.totalPurchase || 0), 0);
+  const totalPaid     = latest.reduce((s, r) => s + (r.paid || 0), 0);
+  const totalPending  = latest.reduce((s, r) => s + (r.pending || 0), 0);
 
   return (
-    <div style={{padding:'20px 24px'}}>
-      {toast && <div style={{position:'fixed',top:20,right:24,zIndex:9999,background:'#1e293b',color:'white',
-        padding:'10px 20px',borderRadius:10,fontWeight:600,fontSize:13,boxShadow:'0 4px 20px rgba(0,0,0,.2)'}}>{toast}</div>}
-
-      {/* Summary */}
-      <div style={{display:'flex',gap:12,flexWrap:'wrap',marginBottom:20}}>
-        {[{label:'Total',amt:totalAmt,bg:'#f0f9ff',border:'#bae6fd',color:'#0ea5e9'},
-          {label:'Pending',amt:pendingAmt,bg:'#fef2f2',border:'#fecaca',color:'#ef4444'},
-          {label:'Cleared',amt:clearedAmt,bg:'#f0fdf4',border:'#bbf7d0',color:'#10b981'}]
-          .map(({label,amt,bg,border,color})=>(
-            <div key={label} style={{background:bg,border:`1.5px solid ${border}`,borderRadius:12,padding:'12px 24px',textAlign:'center',minWidth:130}}>
-              <div style={{fontSize:10,color:'#94a3b8',fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',marginBottom:4}}>{label}</div>
-              <div style={{fontSize:18,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color}}>{cur(amt)}</div>
-            </div>
-          ))}
-      </div>
-
-      {showForm && (
-        <div className="card" style={{marginBottom:20}}>
-          <div style={{fontWeight:800,fontSize:15,marginBottom:14}}>New Payment Receipt</div>
-          {error&&<div style={{background:'#fef2f2',border:'1px solid #fecaca',color:'#dc2626',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:13}}>{error}</div>}
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-            {[{k:'date',l:'DATE *',t:'date'},{k:'shopName',l:'SHOP NAME *',ph:'Shop / Store name'},
-              {k:'shopkeeperName',l:'CUSTOMER NAME',ph:'Full name'},{k:'phone',l:'PHONE NO.',ph:'10-digit mobile'},
-              {k:'forItem',l:'FOR ITEM',ph:'Medicine / Product name'},{k:'amount',l:'AMOUNT ₹ *',t:'number',ph:'0.00'}]
-              .map(({k,l,t,ph})=>(
-                <div key={k} className="form-group">
-                  <label className="form-label">{l}</label>
-                  <input className="form-input" type={t||'text'} placeholder={ph} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/>
-                </div>
-              ))}
-            <div className="form-group">
-              <label className="form-label">PAYMENT METHOD</label>
-              <select className="form-input" value={form.method} onChange={e=>setForm({...form,method:e.target.value})}>
-                {['UPI','Cash','NEFT','Card','Cheque','Insurance','Other'].map(o=><option key={o}>{o}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">STATUS</label>
-              <select className="form-input" value={form.status} onChange={e=>setForm({...form,status:e.target.value})}>
-                <option>Pending</option><option>Cleared</option>
-              </select>
-            </div>
-          </div>
-          <div style={{display:'flex',gap:10,marginTop:4}}>
-            <button className="btn-primary" onClick={handleAdd} disabled={addMut.isPending}>{addMut.isPending?'Saving…':'✓ Add to Table'}</button>
-            <button className="btn-outline" onClick={()=>{setShowForm(false);setError('');}}>Cancel</button>
-          </div>
-        </div>
+    <div style={{ padding: '20px 24px' }}>
+      {toast && (
+        <div style={{ position: 'fixed', top: 20, right: 24, zIndex: 9999, background: '#1e293b',
+          color: 'white', padding: '10px 20px', borderRadius: 10, fontWeight: 600, fontSize: 13,
+          boxShadow: '0 4px 20px rgba(0,0,0,.2)' }}>{toast}</div>
       )}
 
-      <div className="card" style={{padding:0,overflow:'hidden'}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 20px',borderBottom:'1px solid var(--border)',flexWrap:'wrap',gap:10}}>
-          <span className="card-title">Credit — Amount Due / Pending Payments</span>
-          {!showForm && <button className="btn-primary" style={{fontSize:13,padding:'7px 14px'}} onClick={()=>setShowForm(true)}>+ Add a Payment Receipt</button>}
+      {showPayNow && (
+        <PayNowModal records={records} onClose={() => setShowPayNow(false)}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ['shop-credits'] }); showT('Record saved ✓'); }}
+          showToast={showT} />
+      )}
+
+      {/* Summary bar */}
+      <div id="retail-credit-summary-bar" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+        {[
+          { label: 'TOTAL PURCHASE', amt: totalPurchase, bg: '#f0f9ff', border: '#bae6fd', color: '#0ea5e9' },
+          { label: 'TOTAL PAID',     amt: totalPaid,     bg: '#f0fdf4', border: '#bbf7d0', color: '#10b981' },
+          { label: 'TOTAL PENDING',  amt: totalPending,  bg: '#fef2f2', border: '#fecaca', color: '#ef4444' },
+        ].map(({ label, amt, bg, border, color }) => (
+          <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: 10,
+            padding: '10px 16px', textAlign: 'center', flex: 1, minWidth: 140 }}>
+            <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", color }}>{cur(amt)}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Table card */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <span className="card-title" style={{ marginRight: 6 }}>💳 Credit</span>
+            <span style={{ fontSize: 12, color: '#64748b' }}>Supplier / Wholesaler Payments</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {selectMode && selected.length > 0 && (
+              <button className="btn-primary"
+                style={{ fontSize: 13, padding: '7px 14px', background: '#ef4444', borderColor: '#ef4444' }}
+                onClick={deleteSelected}>
+                🗑 Delete Selected
+              </button>
+            )}
+            <button className="btn-outline"
+              style={{ fontSize: 13, padding: '7px 14px',
+                color: selectMode ? '#10b981' : '#0ea5e9',
+                borderColor: selectMode ? '#10b981' : '#0ea5e9' }}
+              onClick={toggleSelectMode}>
+              {selectMode ? '✓ Done' : '☑ Select to Delete'}
+            </button>
+            <button className="btn-primary" style={{ fontSize: 13, padding: '7px 14px' }}
+              onClick={() => setShowPayNow(true)}>
+              💳 Pay Now
+            </button>
+          </div>
         </div>
-        {isLoading ? <div style={{padding:32,textAlign:'center',color:'#94a3b8'}}>Loading…</div> : (
+
+        {isLoading ? (
+          <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8' }}>Loading…</div>
+        ) : (
           <div className="table-wrap">
-            <table className="tbl" style={{minWidth:760}}>
+            <table className="tbl" style={{ minWidth: 960 }}>
               <thead>
                 <tr>
-                  <th style={{width:40}}>SL.</th>
-                  <th>DATE</th><th>SHOP NAME</th><th>SHOPKEEPER NAME</th>
-                  <th>PHONE NO.</th><th>FOR ITEM</th><th>PAYMENT AMOUNT</th>
-                  <th>METHOD</th><th>STATUS</th><th>ACTION</th>
+                  {selectMode && (
+                    <th style={{ width: 40 }}>
+                      <input type="checkbox" style={{ cursor: 'pointer', width: 15, height: 15 }}
+                        checked={selected.length === records.length && records.length > 0}
+                        onChange={e => selectAll(e.target.checked)} />
+                    </th>
+                  )}
+                  <th style={{ width: 40 }}>SL. NO.</th>
+                  <th style={{ minWidth: 160 }}>SUPPLIER NAME</th>
+                  <th style={{ minWidth: 110 }}>WHOLESALER ID</th>
+                  <th style={{ minWidth: 160 }}>WHOLESALER (OWNER NAME)</th>
+                  <th style={{ minWidth: 120 }}>TOTAL PURCHASE</th>
+                  <th style={{ minWidth: 100 }}>PAID</th>
+                  <th style={{ minWidth: 90 }}>PAYMENT MODE</th>
+                  <th style={{ minWidth: 120 }}>PENDING (TO BE PAID)</th>
+                  <th style={{ minWidth: 130 }}>LAST PURCHASE DATE</th>
+                  <th style={{ minWidth: 100 }}>STATUS</th>
                 </tr>
               </thead>
-              <tbody>
-                {arr.length===0
-                  ? <tr className="empty-row"><td colSpan={10}>No payment records yet.</td></tr>
-                  : arr.map((r,i)=>{
-                    const isPending=r.status==='Pending';
-                    const amt=r.amount||r.paymentAmount||0;
-                    return(
-                      <tr key={r.id||i} style={{background:isPending?'#fffbeb':''}}>
-                        <td style={{color:'#94a3b8',fontSize:12,textAlign:'center'}}>{i+1}</td>
-                        <td style={{fontSize:12,whiteSpace:'nowrap'}}>{fmtDate(r.date)}</td>
-                        <td style={{fontWeight:600}}>{r.shopName||r.supplierName||'—'}</td>
-                        <td>{r.shopkeeperName||r.ownerName||'—'}</td>
-                        <td style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>{r.phone||'—'}</td>
-                        <td style={{fontSize:12}}>{r.forItem||r.item||'—'}</td>
-                        <td style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:'var(--accent)',whiteSpace:'nowrap'}}>{cur(amt)}</td>
-                        <td><span className="badge badge-blue">{r.method||r.paymentMethod||'UPI'}</span></td>
-                        <td>{isPending?<span className="badge badge-red">Pending</span>:<span className="badge badge-green">Cleared</span>}</td>
-                        <td><button className="btn-icon" onClick={()=>delMut.mutate(r.id)} title="Delete">🗑️</button></td>
-                      </tr>
-                    );
-                  })}
+              <tbody id="retail-credit-tbody">
+                {records.length === 0 ? (
+                  <tr className="empty-row">
+                    <td colSpan={selectMode ? 11 : 10}>
+                      No supplier records yet. Click "💳 Pay Now" to add.
+                    </td>
+                  </tr>
+                ) : records.map((r, i) => {
+                  const isPending = r.status === 'Pending';
+                  return (
+                    <tr key={r.id} style={{ background: isPending ? '#fffbeb' : '' }}>
+                      {selectMode && (
+                        <td style={{ textAlign: 'center' }}>
+                          <input type="checkbox" style={{ cursor: 'pointer', width: 15, height: 15 }}
+                            checked={selected.includes(r.id)}
+                            onChange={() => toggleSelect(r.id)} />
+                        </td>
+                      )}
+                      <td style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center' }}>{i + 1}</td>
+                      <td style={{ fontWeight: 600 }}>{r.supplierName}</td>
+                      <td style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: '#0ea5e9', fontWeight: 700 }}>{r.supplierId}</td>
+                      <td>{r.ownerName}</td>
+                      <td style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700 }}>{cur(r.totalPurchase)}</td>
+                      <td style={{ fontFamily: "'JetBrains Mono',monospace", color: '#10b981', fontWeight: 700 }}>{cur(r.paid)}</td>
+                      <td><span className="badge badge-blue">{r.paymentMode}</span></td>
+                      <td style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700,
+                        color: r.pending > 0 ? '#ef4444' : '#10b981' }}>{cur(r.pending)}</td>
+                      <td style={{ fontSize: 12, whiteSpace: 'nowrap', color: '#64748b' }}>{fmtDate(r.lastPurchaseDate)}</td>
+                      <td>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5,
+                          fontWeight: 700, color: isPending ? '#ef4444' : '#10b981' }}>
+                          <span style={{ width: 10, height: 10, borderRadius: '50%',
+                            background: isPending ? '#ef4444' : '#10b981', display: 'inline-block' }} />
+                          {r.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -798,9 +850,307 @@ function RetailCredit() {
   );
 }
 
+// ── Pay Now Modal ─────────────────────────────────────────────────────────────
+function PayNowModal({ records, onClose, onSaved, showToast }) {
+  const qc = useQueryClient();
+  const [supplierId,   setSupplierId]   = useState('');
+  const [ownerName,    setOwnerName]    = useState('');
+  const [supplierName, setSupplierName] = useState('');
+  const [totalPurch,   setTotalPurch]   = useState('');
+  const [nowPaying,    setNowPaying]    = useState('');
+  const [pending,      setPending]      = useState('');
+  const [payMode,      setPayMode]      = useState('UPI');
+  const [lastDate,     setLastDate]     = useState('');
+  const [billDate,     setBillDate]     = useState(todayStr());
+  const [status,       setStatus]       = useState('Pending');
+  const [locked,       setLocked]       = useState(false);
+  const [fetchedRec,   setFetchedRec]   = useState(null);
+  const [oldPending,   setOldPending]   = useState(0);
+  const [editMode,     setEditMode]     = useState(false);
+  const [infoBar,      setInfoBar]      = useState(null);
+  const [saving,       setSaving]       = useState(false);
+  const [error,        setError]        = useState('');
+
+  // Auto-calc pending whenever nowPaying or totalPurch changes
+  const nowPay  = parseFloat(nowPaying)  || 0;
+  const totPur  = parseFloat(totalPurch) || 0;
+  const base    = fetchedRec ? oldPending : totPur;
+  const calcPending = Math.max(0, base - nowPay);
+  const calcStatus  = calcPending <= 0 ? 'Cleared' : 'Pending';
+
+  function clearForm() {
+    setSupplierId(''); setOwnerName(''); setSupplierName('');
+    setTotalPurch(''); setNowPaying(''); setPending('');
+    setPayMode('UPI'); setLastDate(''); setBillDate(todayStr());
+    setStatus('Pending'); setLocked(false); setFetchedRec(null);
+    setOldPending(0); setEditMode(false); setInfoBar(null); setError('');
+  }
+
+  async function handleFetch() {
+    setError('');
+    if (!supplierId.trim() || !ownerName.trim()) {
+      setError('Enter Wholesaler ID and Owner Name first'); return;
+    }
+    // Find in local records first
+    const match = records.find(r =>
+      r.supplierId.toLowerCase() === supplierId.toLowerCase() &&
+      r.ownerName.toLowerCase()  === ownerName.toLowerCase()
+    );
+    if (!match) {
+      // Try server
+      try {
+        const res = await client.get(`/shop-credits/fetch/${encodeURIComponent(supplierId)}`);
+        const m = res.data;
+        applyFetch(m);
+      } catch {
+        setError('No existing record found for this Wholesaler ID & Owner Name');
+      }
+      return;
+    }
+    applyFetch(match);
+  }
+
+  function applyFetch(match) {
+    setInfoBar({
+      totalPurchase: match.totalPurchase,
+      paid:          match.paid,
+      pending:       match.pending,
+      status:        match.status,
+    });
+    setSupplierName(match.supplierName || '');
+    setTotalPurch(String(match.totalPurchase || ''));
+    setNowPaying(String(match.paid || ''));
+    setPending(String(match.pending || ''));
+    setLastDate(match.lastPurchaseDate || '');
+    setPayMode(match.paymentMode || 'UPI');
+    setStatus(match.status || 'Pending');
+    setFetchedRec(match);
+    setOldPending(match.pending || 0);
+    setLocked(true);
+    setEditMode(false);
+    showToast(`Fetched! Old Pending: ₹${parseFloat(match.pending||0).toFixed(2)}. Click ✏️ EDIT FETCHED → enter amount paying now → Pending auto-updates`);
+  }
+
+  function handleEditFetched() {
+    setTotalPurch(String(fetchedRec.totalPurchase || ''));
+    setNowPaying('');
+    setPending(String(oldPending));
+    setPayMode(fetchedRec.paymentMode || 'UPI');
+    setStatus('Pending');
+    setLocked(false);
+    setEditMode(true);
+  }
+
+  async function handleSave() {
+    setError('');
+    if (!supplierId.trim() || !supplierName.trim() || !ownerName.trim()) {
+      setError('Supplier Name, Wholesaler ID and Owner Name are required'); return;
+    }
+    const np  = parseFloat(nowPaying) || 0;
+    const tp  = parseFloat(totalPurch) || 0;
+    let newPending, cumulativePaid;
+    if (fetchedRec) {
+      const op = fetchedRec.pending;
+      const op_paid = fetchedRec.paid;
+      newPending     = +Math.max(0, op - np).toFixed(2);
+      cumulativePaid = +(op_paid + np).toFixed(2);
+    } else {
+      newPending     = +Math.max(0, tp - np).toFixed(2);
+      cumulativePaid = +np.toFixed(2);
+    }
+    const finalStatus = newPending <= 0 ? 'Cleared' : 'Pending';
+
+    const payload = {
+      supplierId: supplierId.trim(),
+      supplierName: supplierName.trim(),
+      ownerName: ownerName.trim(),
+      totalPurchase: tp,
+      paid: cumulativePaid,
+      paymentMode: payMode,
+      pending: newPending,
+      lastPurchaseDate: lastDate || todayStr(),
+      billDate, status: finalStatus,
+    };
+
+    setSaving(true);
+    try {
+      await client.post('/shop-credits', payload);
+      onSaved();
+      onClose();
+      // Print prompt
+      if (window.confirm('Record saved ✓\n\nDo you want to print the supplier statement?')) {
+        printSupplierStatement(supplierId, payload, records);
+      }
+    } catch(e) {
+      setError(e.response?.data?.error || 'Save failed');
+    } finally { setSaving(false); }
+  }
+
+  const inputStyle = (locked && !editMode)
+    ? { margin: 0, background: '#f1f5f9', cursor: 'not-allowed' }
+    : { margin: 0 };
+
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 560, maxHeight: '92vh', overflowY: 'auto' }}>
+        <div className="modal-hd">
+          <h2 style={{ margin: 0, fontSize: 16 }}>💳 Pay Now — New Record</h2>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div style={{ padding: '4px 0' }}>
+          {/* Instruction */}
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12, lineHeight: 1.6 }}>
+            Enter <strong>Total Purchase</strong> (full amount bought) + <strong>Now Paying</strong> (amount paying this time) → Pending &amp; Status auto-fill.
+            For existing supplier: enter ID &amp; Owner Name → click <strong>🔍 FETCH DETAILS</strong> → click <strong>✏️ EDIT FETCHED</strong> → update fields → <strong>ADD RECORD</strong>.
+          </div>
+
+          {/* Info bar after fetch */}
+          {infoBar && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '8px 14px',
+              marginBottom: 12, fontSize: 13, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#15803d' }}>📋 Previous Record:</span>
+              <span>Total Purchase: <strong>{cur(infoBar.totalPurchase)}</strong></span>
+              <span>Paid: <strong>{cur(infoBar.paid)}</strong></span>
+              <span>Pending: <strong>{cur(infoBar.pending)}</strong></span>
+              <span>Status: <strong style={{ color: infoBar.status === 'Cleared' ? '#10b981' : '#ef4444' }}>{infoBar.status}</strong></span>
+            </div>
+          )}
+
+          {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626',
+            borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 13 }}>{error}</div>}
+
+          {/* Form grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">WHOLESALER ID *</label>
+              <input className="form-input" style={{ margin: 0 }} value={supplierId}
+                onChange={e => setSupplierId(e.target.value)} placeholder="e.g. WHL-001" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">WHOLESALER (OWNER NAME) *</label>
+              <input className="form-input" style={{ margin: 0 }} value={ownerName}
+                onChange={e => setOwnerName(e.target.value)} placeholder="Owner full name" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">SUPPLIER NAME *</label>
+              <input className="form-input" style={inputStyle} value={supplierName}
+                readOnly={locked && !editMode}
+                onChange={e => setSupplierName(e.target.value)} placeholder="Company / Distributor name" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">TOTAL PURCHASE ₹</label>
+              <input className="form-input" type="number" min="0" step="0.01"
+                style={inputStyle} value={totalPurch}
+                readOnly={locked && !editMode}
+                onChange={e => setTotalPurch(e.target.value)} placeholder="0.00" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ color: '#10b981' }}>NOW PAYING ₹ (AMOUNT PAYING THIS TIME)</label>
+              <input className="form-input" type="number" min="0" step="0.01"
+                style={editMode ? { margin: 0, background: '#fffbeb', border: '2px solid #10b981' } : inputStyle}
+                value={nowPaying}
+                readOnly={locked && !editMode}
+                onChange={e => setNowPaying(e.target.value)} placeholder="0.00" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">PAYMENT MODE</label>
+              <select className="form-input" style={{ margin: 0 }} value={payMode}
+                disabled={locked && !editMode}
+                onChange={e => setPayMode(e.target.value)}>
+                {['UPI','Cash','NEFT','Card','Cheque','Other'].map(m => <option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">PENDING (TO BE PAID) ₹ (AUTO-CALCULATED)</label>
+              <input className="form-input" style={{ margin: 0, background: '#f1f5f9', cursor: 'not-allowed' }}
+                readOnly value={nowPaying ? calcPending.toFixed(2) : (pending || '')}
+                placeholder="Auto-calculated" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">LAST PURCHASE DATE</label>
+              <input className="form-input" type="date"
+                style={inputStyle} value={lastDate}
+                readOnly={locked && !editMode}
+                onChange={e => setLastDate(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">BILL DATE</label>
+              <input className="form-input" type="date" style={{ margin: 0 }} value={billDate}
+                onChange={e => setBillDate(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">STATUS (AUTO-SET)</label>
+              <select className="form-input" style={{ margin: 0, background: '#f1f5f9', cursor: 'not-allowed' }}
+                disabled value={nowPaying ? calcStatus : status}>
+                <option value="Pending">Pending</option>
+                <option value="Cleared">Cleared</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Edit fetched button */}
+          {locked && !editMode && (
+            <button type="button" onClick={handleEditFetched}
+              style={{ marginTop: 12, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a',
+                borderRadius: 8, padding: '7px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              ✏️ EDIT FETCHED
+            </button>
+          )}
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <button type="button" className="btn-outline" onClick={clearForm}>🗑 CLEAR</button>
+            <button type="button" className="btn-outline" style={{ color: '#0ea5e9', borderColor: '#0ea5e9' }}
+              onClick={handleFetch}>
+              🔍 FETCH DETAILS
+            </button>
+            <button type="button" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}
+              onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : '✓ ADD RECORD'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function printSupplierStatement(supplierId, lastRecord, allRecords) {
+  const records = allRecords.filter(r => r.supplierId.toLowerCase() === supplierId.toLowerCase());
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) return;
+  const rows = records.map((r, i) => `
+    <tr style="background:${i%2===0?'#f8fafc':'white'}">
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">${fmtDate(r.billDate||r.lastPurchaseDate)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace">₹${parseFloat(r.totalPurchase||0).toFixed(2)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;color:#10b981">₹${parseFloat(r.paid||0).toFixed(2)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;color:${r.pending>0?'#ef4444':'#10b981'}">₹${parseFloat(r.pending||0).toFixed(2)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">${r.paymentMode}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">
+        <span style="background:${r.status==='Cleared'?'#f0fdf4':'#fef2f2'};color:${r.status==='Cleared'?'#10b981':'#ef4444'};padding:2px 8px;border-radius:20px;font-weight:700;font-size:11px">${r.status}</span>
+      </td>
+    </tr>`).join('');
+
+  win.document.write(`<!DOCTYPE html><html><head><title>Supplier Statement — ${supplierId}</title>
+  <style>body{font-family:Arial,sans-serif;padding:28px}h2{margin:0;color:#0f172a}.sub{color:#64748b;font-size:13px;margin-bottom:20px}
+  table{width:100%;border-collapse:collapse}th{background:#0ea5e9;color:#fff;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase}
+  @media print{body{padding:16px}}</style></head><body>
+  <h2>Supplier Statement</h2>
+  <div class="sub">Wholesaler ID: <strong>${supplierId}</strong> · ${records[0]?.supplierName||''} · Owner: ${records[0]?.ownerName||''}</div>
+  <table>
+    <thead><tr><th>Date</th><th>Total Purchase</th><th>Paid</th><th>Pending</th><th>Mode</th><th>Status</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  </body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 600);
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 export default function CreditPage() {
-  const {storeType} = useSettingsStore();
-  const isWS = (storeType||'').trim() === 'Wholesale Pharma';
-  return isWS ? <WholesaleCredit/> : <RetailCredit/>;
+  const { storeType } = useSettingsStore();
+  const isWS = (storeType || '').trim() === 'Wholesale Pharma';
+  return isWS ? <WholesaleCredit /> : <RetailCredit />;
 }
