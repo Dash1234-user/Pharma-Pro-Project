@@ -2527,34 +2527,36 @@ def get_shop_credits_summary():
     user_id  = identity['user_id']
     conn     = get_db()
 
-    rows = conn.execute(
-        "SELECT supplier_id, owner_name, total_purchase, paid, pending "
-        "FROM shop_credits "
-        "WHERE user_id=%s AND partition IN ('retail', 'both') "
-        "ORDER BY bill_date DESC",
-        (user_id,)
-    ).fetchall()
+    # Use a subquery to get the single latest row per supplier
+    # "Latest" = largest rowid (insertion order), breaking date ties correctly
+    rows = conn.execute("""
+        SELECT sc.supplier_id, sc.owner_name,
+               sc.total_purchase, sc.paid, sc.pending
+        FROM shop_credits sc
+        INNER JOIN (
+            SELECT LOWER(supplier_id) AS sid,
+                   LOWER(owner_name)  AS own,
+                   MAX(ctid::text)    AS max_ctid
+            FROM shop_credits
+            WHERE user_id=%s AND partition IN ('retail','both')
+            GROUP BY LOWER(supplier_id), LOWER(owner_name)
+        ) latest
+          ON LOWER(sc.supplier_id) = latest.sid
+         AND LOWER(sc.owner_name)  = latest.own
+         AND sc.ctid::text         = latest.max_ctid
+        WHERE sc.user_id=%s AND sc.partition IN ('retail','both')
+    """, (user_id, user_id)).fetchall()
     conn.close()
 
-    # Deduplicate: keep only the latest record per supplier
-    # (matches JS logic: unshift keeps newest first, Set skips duplicates)
-    seen = set()
-    latest = []
-    for r in rows:
-        key = (r["supplier_id"] or "").lower() + "|" + (r["owner_name"] or "").lower()
-        if key not in seen:
-            seen.add(key)
-            latest.append(r)
-
-    total_purchase = round(sum(r["total_purchase"] or 0 for r in latest), 2)
-    total_paid     = round(sum(r["paid"]           or 0 for r in latest), 2)
-    total_pending  = round(sum(r["pending"]        or 0 for r in latest), 2)
+    total_purchase = round(sum(r["total_purchase"] or 0 for r in rows), 2)
+    total_paid     = round(sum(r["paid"]           or 0 for r in rows), 2)
+    total_pending  = round(sum(r["pending"]        or 0 for r in rows), 2)
 
     return jsonify({
         "totalPurchase":  total_purchase,
         "totalPaid":      total_paid,
         "totalPending":   total_pending,
-        "supplierCount":  len(latest),
+        "supplierCount":  len(rows),
     })
 
 
@@ -2572,7 +2574,7 @@ def get_shop_credits():
     user_id  = identity['user_id']
     conn = get_db()
     rs   = conn.execute(
-        "SELECT * FROM shop_credits WHERE user_id=%s AND partition IN ('retail', 'both') ORDER BY bill_date DESC",
+        "SELECT * FROM shop_credits WHERE user_id=%s AND partition IN ('retail', 'both') ORDER BY bill_date DESC, ctid DESC",
         (user_id,)
     ).fetchall()
     conn.close()
@@ -2588,7 +2590,7 @@ def fetch_shop_credit_by_supplier(supplier_id):
     r    = conn.execute("""
         SELECT * FROM shop_credits
         WHERE LOWER(supplier_id)=%s AND user_id=%s AND partition IN ('retail', 'both')
-        ORDER BY bill_date DESC
+        ORDER BY bill_date DESC, ctid DESC
         LIMIT 1
     """, (supplier_id.lower(), user_id)).fetchone()
     conn.close()
