@@ -710,7 +710,7 @@ function RetailCredit() {
     showT(`${selected.length} record${selected.length > 1 ? 's' : ''} deleted ✓`);
   }
 
-  // Summary from API — latest-per-supplier dedup done server-side with ctid ordering
+  // Summary from API — latest-per-supplier dedup done server-side
   const { data: shopSummary = {} } = useQuery({
     queryKey: ['shop-credits-summary'],
     queryFn:  () => client.get('/shop-credits/summary').then(r => r.data),
@@ -734,11 +734,7 @@ function RetailCredit() {
       )}
       {showPayNow && (
         <PayNowModal records={records} onClose={() => setShowPayNow(false)}
-          onSaved={() => {
-            qc.invalidateQueries({ queryKey: ['shop-credits'] });
-            qc.invalidateQueries({ queryKey: ['shop-credits-summary'] });
-            showT('Record saved ✓');
-          }}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ['shop-credits'] }); qc.invalidateQueries({ queryKey: ['shop-credits-summary'] }); showT('Record saved ✓'); }}
           showToast={showT} />
       )}
 
@@ -869,22 +865,25 @@ function RetailCredit() {
 
 // ── Supplier History Modal ────────────────────────────────────────────────────
 function SupplierHistoryModal({ supplierId, records, onClose }) {
+  // Sort newest first — use bill_date; tie-break by array index (server already returns ctid DESC)
   const history = records
     .filter(r => (r.supplierId || '').toLowerCase() === supplierId.toLowerCase())
-    .sort((a, b) => {
-      const da = new Date(b.billDate || b.lastPurchaseDate);
-      const db = new Date(a.billDate || a.lastPurchaseDate);
-      return da - db;
-    });
+    .sort((a, b) => new Date(b.billDate||b.lastPurchaseDate) - new Date(a.billDate||a.lastPurchaseDate));
 
-  const supplier   = history[0] || {};
-  const totalPaid  = history.reduce((s, r) => s + (r.paid || 0), 0);
-  const latestPend = history[0]?.pending || 0;
+  const latest  = history[0] || {};   // most recent record = source of truth
+  const supplier = latest;
+
+  // ── CORRECT: use latest record's values, NOT sum across all records ──────
+  // Each record stores the CUMULATIVE paid amount up to that point.
+  // So history[0].paid IS the total paid, history[0].pending IS current pending.
+  const totalPaidDisplay  = latest.paid    || 0;
+  const latestPend        = latest.pending || 0;
+  const totalPurchDisplay = latest.totalPurchase || 0;
 
   function printHistory() {
     const rows = history.map((r, i) => `
       <tr style="background:${i % 2 === 0 ? '#f8fafc' : 'white'}">
-        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0">${fmtDate(r.billDate || r.lastPurchaseDate)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0">${fmtDate(r.billDate||r.lastPurchaseDate)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-family:monospace">₹${parseFloat(r.totalPurchase||0).toFixed(2)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-family:monospace;color:#10b981;font-weight:700">₹${parseFloat(r.paid||0).toFixed(2)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-family:monospace;color:${r.pending>0?'#ef4444':'#10b981'};font-weight:700">₹${parseFloat(r.pending||0).toFixed(2)}</td>
@@ -894,14 +893,14 @@ function SupplierHistoryModal({ supplierId, records, onClose }) {
         </td>
       </tr>`).join('');
 
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Payment History</title>
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Payment History — ${supplierId}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
       body{font-family:Arial,sans-serif;padding:28px;color:#1e293b}
       .hd{background:#0f1f3d;color:white;padding:18px 24px;border-radius:10px 10px 0 0}
       .hd h1{font-size:18px}.hd p{font-size:11px;opacity:.7;margin-top:3px}
       .meta{background:#f8fafc;padding:14px 18px;border:1px solid #e2e8f0;border-top:none;
-        display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px;margin-bottom:18px}
+        display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px;margin-bottom:18px;border-radius:0 0 8px 8px}
       .lbl{font-size:10px;color:#94a3b8;text-transform:uppercase;margin-bottom:2px}
       .val{font-weight:700}
       table{width:100%;border-collapse:collapse;font-size:13px}
@@ -916,15 +915,15 @@ function SupplierHistoryModal({ supplierId, records, onClose }) {
       <div><div class="lbl">Supplier Name</div><div class="val">${supplier.supplierName||''}</div></div>
       <div><div class="lbl">Wholesaler ID</div><div class="val" style="color:#0ea5e9">${supplierId}</div></div>
       <div><div class="lbl">Owner Name</div><div class="val">${supplier.ownerName||''}</div></div>
-      <div><div class="lbl">Total Paid (All Time)</div><div class="val" style="color:#10b981">₹${totalPaid.toFixed(2)}</div></div>
+      <div><div class="lbl">Total Purchase</div><div class="val">₹${totalPurchDisplay.toFixed(2)}</div></div>
+      <div><div class="lbl">Total Paid</div><div class="val" style="color:#10b981">₹${totalPaidDisplay.toFixed(2)}</div></div>
       <div><div class="lbl">Current Pending</div><div class="val" style="color:${latestPend>0?'#ef4444':'#10b981'}">₹${latestPend.toFixed(2)}</div></div>
-      <div><div class="lbl">Total Records</div><div class="val">${history.length}</div></div>
     </div>
     <table>
       <thead><tr><th>Date</th><th>Total Purchase</th><th>Paid</th><th>Pending</th><th>Mode</th><th>Status</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="footer">PharmaCare Pro · Supplier / Wholesaler Payment Statement</div>
+    <div class="footer">PharmaCare Pro · Supplier / Wholesaler Payment Statement · ${history.length} record${history.length!==1?'s':''}</div>
     </body></html>`;
     const win = window.open('','_blank','width=860,height=700,scrollbars=yes');
     if (!win){alert('Allow popups to print.');return;}
@@ -940,24 +939,27 @@ function SupplierHistoryModal({ supplierId, records, onClose }) {
           <h2 style={{margin:0,fontSize:16}}>📋 Payment History — {supplierId}</h2>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
-        {/* Meta */}
+
+        {/* Meta — uses LATEST record values, not sum */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,
           background:'#f8fafc',borderRadius:8,padding:'12px 16px',marginBottom:16,fontSize:13}}>
           {[
-            {l:'Supplier Name',   v:supplier.supplierName||'',    c:undefined},
-            {l:'Wholesaler ID',   v:supplierId,                    c:'#0ea5e9'},
-            {l:'Owner Name',      v:supplier.ownerName||'',        c:undefined},
-            {l:'Total Paid',      v:cur(totalPaid),                c:'#10b981'},
-            {l:'Current Pending', v:cur(latestPend),               c:latestPend>0?'#ef4444':'#10b981'},
-            {l:'Records',         v:String(history.length),        c:undefined},
+            {l:'Supplier Name',   v:supplier.supplierName||'', c:undefined},
+            {l:'Wholesaler ID',   v:supplierId,                c:'#0ea5e9'},
+            {l:'Owner Name',      v:supplier.ownerName||'',    c:undefined},
+            {l:'Total Purchase',  v:cur(totalPurchDisplay),    c:undefined},
+            {l:'Total Paid',      v:cur(totalPaidDisplay),     c:'#10b981'},
+            {l:'Current Pending', v:cur(latestPend),           c:latestPend>0?'#ef4444':'#10b981'},
           ].map(({l,v,c})=>(
             <div key={l}>
               <div style={{fontSize:10,color:'#94a3b8',textTransform:'uppercase',marginBottom:2}}>{l}</div>
-              <div style={{fontWeight:700,color:c||'#1e293b',fontFamily:c?"'JetBrains Mono',monospace":undefined}}>{v}</div>
+              <div style={{fontWeight:700,color:c||'#1e293b',
+                fontFamily:c?"'JetBrains Mono',monospace":undefined}}>{v}</div>
             </div>
           ))}
         </div>
-        {/* Table */}
+
+        {/* History table */}
         <div className="table-wrap" style={{marginBottom:16}}>
           <table className="tbl">
             <thead>
@@ -984,8 +986,8 @@ function SupplierHistoryModal({ supplierId, records, onClose }) {
                       color:r.pending>0?'#ef4444':'#10b981'}}>{cur(r.pending)}</td>
                     <td><span className="badge badge-blue">{r.paymentMode}</span></td>
                     <td>
-                      <span style={{display:'inline-flex',alignItems:'center',gap:4,fontWeight:700,fontSize:12,
-                        color:r.status==='Cleared'?'#10b981':'#ef4444'}}>
+                      <span style={{display:'inline-flex',alignItems:'center',gap:4,fontWeight:700,
+                        fontSize:12,color:r.status==='Cleared'?'#10b981':'#ef4444'}}>
                         <span style={{width:8,height:8,borderRadius:'50%',display:'inline-block',
                           background:r.status==='Cleared'?'#10b981':'#ef4444'}}/>
                         {r.status}
@@ -996,6 +998,7 @@ function SupplierHistoryModal({ supplierId, records, onClose }) {
             </tbody>
           </table>
         </div>
+
         <div style={{display:'flex',gap:10,justifyContent:'flex-end',
           paddingTop:16,borderTop:'1px solid var(--border)'}}>
           <button className="btn-outline" onClick={onClose}>Close</button>
