@@ -19,7 +19,7 @@ export default defineConfig({
   build: {
     // Vite builds into frontend/dist/
     // Flask's serve_static() will serve files from here
-    outDir: '../dist',
+    outDir: 'dist',
     emptyOutDir: true,
   },
 });
