@@ -84,7 +84,11 @@ if not DATABASE_URL:
 _safe_url = DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "(set)"
 print(f"DATABASE_URL: ...@{_safe_url}")
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=[
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://pharma-pro-project-1.onrender.com",
+], supports_credentials=True)
 
 # ─────────────────────────────────────────────────────────────
 # JWT CONFIGURATION
