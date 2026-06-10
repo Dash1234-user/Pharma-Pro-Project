@@ -4,7 +4,7 @@ import axios from 'axios';
 const AUTH_TOKEN_KEY = 'pharmacare_jwt';
 
 const client = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
