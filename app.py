@@ -1983,20 +1983,34 @@ def create_bill():
             qty_in_pieces = display_qty
 
         gst_amt, line_total = _calc_item(unit_price, qty, discount, gst_rate)
+        # Preserve wholesale billing fields sent from frontend
+        mrp_per_box_val       = float(it.get("mrpPerBox",          0) or 0)
+        selling_price_per_box = float(it.get("sellingPricePerBox",  0) or 0)
+        if selling_price_per_box and unit_type == "box":
+            amt_before_tax = selling_price_per_box * qty
+        elif selling_price_per_box and unit_type == "strip":
+            full_boxes   = int(qty // spb)
+            extra_strips = qty % spb
+            amt_before_tax = full_boxes * selling_price_per_box + (extra_strips / spb) * selling_price_per_box
+        else:
+            amt_before_tax = qty * unit_price
         calc_items.append({
-            "productId":   it.get("productId", ""),
-            "name":        it.get("name",      ""),
-            "category":    it.get("category",  ""),
-            "unit":        it.get("unit",       ""),
-            "qty":         qty,           # display qty (in selected unit)
-            "unitPrice":   unit_price,
-            "discount":    discount,
-            "gstRate":     gst_rate,
-            "gstAmt":      gst_amt,
-            "lineTotal":   line_total,
-            "unitType":    unit_type,
-            "displayQty":  display_qty,
-            "qtyInPieces": qty_in_pieces,
+            "productId":          it.get("productId", ""),
+            "name":               it.get("name",      ""),
+            "category":           it.get("category",  ""),
+            "unit":               it.get("unit",       ""),
+            "qty":                qty,
+            "unitPrice":          unit_price,
+            "discount":           discount,
+            "gstRate":            gst_rate,
+            "gstAmt":             gst_amt,
+            "lineTotal":          line_total,
+            "unitType":           unit_type,
+            "displayQty":         display_qty,
+            "qtyInPieces":        qty_in_pieces,
+            "amountBeforeTax":    round(amt_before_tax, 2),
+            "mrpPerBox":          mrp_per_box_val,
+            "sellingPricePerBox": selling_price_per_box,
         })
 
     totals = _calc_totals([{
@@ -2079,13 +2093,17 @@ def create_bill():
         # Now purchase_price and unit_price are both expressed per billing unit,
         # so  profit = (unit_price × (1 – disc%) – purchase_price) × qty  is correct.
 
-        selling_price_snap = pd_item.get("sellingPrice", 0.0)
+        selling_price_snap  = float(it.get("sellingPricePerBox", 0.0) or pd_item.get("sellingPrice", 0.0) or 0.0)
+        mrp_per_box_snap    = float(it.get("mrpPerBox",          0.0) or 0.0)
+        amt_before_tax_snap = float(it.get("amountBeforeTax",    0.0) or 0.0)
         conn.execute("""
             INSERT INTO bill_items
               (id,bill_id,product_id,name,category,unit,qty,unit_price,
                discount,gst_rate,gst_amt,line_total,purchase_price,
-               unit_type,display_qty,qty_in_pieces)
-            VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+               unit_type,display_qty,qty_in_pieces,
+               amount_before_tax,mrp_per_box,selling_price_per_box,
+               strips_per_box,pieces_per_strip)
+            VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """, (
             uid(), bill_id,
             it["productId"], it["name"], it["category"], it["unit"],
@@ -2093,6 +2111,8 @@ def create_bill():
             it["gstRate"], it["gstAmt"], it["lineTotal"],
             purchase_price,
             it["unitType"], it["displayQty"], it["qtyInPieces"],
+            amt_before_tax_snap, mrp_per_box_snap, selling_price_snap,
+            spb, pps,
         ))
         if it["productId"]:
             # Deduct in PIECES — accurate regardless of sale unit (box/strip/piece)
