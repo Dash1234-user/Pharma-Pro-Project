@@ -97,7 +97,7 @@ export default function DashboardPage() {
   if (isLoading) return <div style={{padding:32,textAlign:'center',color:'#94a3b8'}}>Loading dashboard…</div>;
 
   return (
-    <div style={{padding:'20px 24px'}}>
+    <div className="page-pad">
 
       {/* Type banner + reset note */}
       <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16,flexWrap:'wrap'}}>
@@ -118,8 +118,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Revenue chart + Low Stock side by side */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:20,marginBottom:20,alignItems:'start'}}>
-        {/* Revenue last 7 days */}
+      <div className="rg-dash-chart">
+        {/* Revenue last 7 days */
         <div className="card" style={{padding:'20px'}}>
           <div style={{fontWeight:700,fontSize:14,marginBottom:16}}>Revenue — Last 7 Days</div>
           <ResponsiveContainer width="100%" height={240}>
@@ -150,7 +150,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Top Products chart + Expiring Soon side by side */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:20,marginBottom:20,alignItems:'start'}}>
+      <div className="rg-dash-chart">
         <div className="card" style={{padding:'20px'}}>
           <div style={{fontWeight:700,fontSize:14,marginBottom:16}}>Top Selling Medicines</div>
           {topData.length===0
