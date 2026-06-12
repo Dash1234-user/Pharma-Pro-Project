@@ -38,20 +38,18 @@ Single pharmacare.db file with internal partitioning:
   │                                                          │
   └──────────────────────────────────────────────────────────┘
 
-Partition key mapping
-─────────────────────────────────────────────────────────────
-  Store Type              │  Partition Key
-  ────────────────────────┼──────────────
-  Wholesale Pharma        │  'wholesale'
-  Retail Pharmacy         │  'retail'
-  Hospital Pharmacy       │  'retail'
-  Medical Store           │  'retail'
-  Ayurvedic Store         │  'retail'
-
+Partition key mapping :
+  ────────────────────────────────────────
+  Store Type             │  Partition Key
+  ───────────────────────┼──────────────
+  Wholesale Pharma       │  'wholesale'
+  Retail Pharmacy        │  'retail'
+  
   partition = 'both'  → seed / migrated data visible to ALL modes
   partition = 'wholesale' → only visible in Wholesale Pharma mode
   partition = 'retail'    → only visible in all retail modes
 """
+
 from dotenv import load_dotenv
 load_dotenv()  
 from flask import Flask, request, jsonify, abort, send_from_directory
@@ -4857,10 +4855,7 @@ if __name__ == '__main__':
     print("  Settings → Pharmacy Type → determines active partition")
     print()
     print("  Wholesale Pharma   → 'wholesale' partition")
-    print("  Retail Pharmacy  ┐")
-    print("  Hospital Pharmacy├→ 'retail'    partition")
-    print("  Medical Store    │")
-    print("  Ayurvedic Store  ┘")
+    print("  Retail Pharmacy  → 'retail' partition")
     print()
     print("  partition='both'   → seed/migrated data (all modes)")
     print()
@@ -4870,14 +4865,5 @@ if __name__ == '__main__':
     print("  Credit DB WS     : credits               (wholesale)")
     print("  Credit DB RT     : shop_credits          (retail)")
     print("  ──────────────────────────────────────────────────────")
-    print()
-    print("  ── Migrate from old localStorage app ─────────────────")
-    print("  1. Open OLD app in browser (file:// version)")
-    print("  2. Open DevTools Console  (F12 → Console tab)")
-    print("  3. Run:  copy(localStorage.getItem('pharmacare_v2'))")
-    print("  4. Paste into a file called: state.json")
-    print("  5. Run: python migrate.py")
-    print("  (Migrated data will be tagged partition='both')")
-    print("  ─────────────────────────────────────────────────────")
     print()
     app.run(debug=True, port=5000)
