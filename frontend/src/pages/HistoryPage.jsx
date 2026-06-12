@@ -43,7 +43,7 @@ function BillViewModal({bill, isWS, onClose}) {
       footer={<><button className="btn-outline" onClick={()=>window.print()}>🖨 Print</button><button className="btn-primary" onClick={onClose}>Close</button></>}>
 
       {/* Bill meta */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16,fontSize:13,background:'#f8fafc',borderRadius:10,padding:'12px 16px'}}>
+      <div className="rg-hist-summary">
         <div><span style={{color:'#94a3b8'}}>Bill No: </span><strong style={{fontFamily:"'JetBrains Mono',monospace",color:'#0ea5e9'}}>{bill.billNo}</strong></div>
         <div><span style={{color:'#94a3b8'}}>Date: </span><strong>{fmtDate(bill.date)}</strong></div>
         {isWS ? <>
@@ -175,7 +175,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <div style={{padding:'20px 24px'}}>
+    <div className="page-pad">
       {/* Toast */}
       {toastMsg&&(
         <div style={{position:'fixed',top:20,right:24,zIndex:9999,background:'#1e293b',color:'white',padding:'10px 20px',borderRadius:10,fontWeight:600,fontSize:13,boxShadow:'0 4px 20px rgba(0,0,0,.2)'}}>
