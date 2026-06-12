@@ -187,7 +187,7 @@ function AddCreditForm({onClose, onSaved}) {
         </div>
 
         {/* Header row */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 110px 130px 28px',gap:8,marginBottom:4}}>
+        <div className="rg-credit-item" style={{marginBottom:4}}>
           <div style={{fontSize:10,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'.06em',paddingLeft:2}}>Item Name</div>
           <div style={{fontSize:10,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'.06em'}}>Type</div>
           <div style={{fontSize:10,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'.06em'}}>Amount ₹</div>
@@ -195,7 +195,7 @@ function AddCreditForm({onClose, onSaved}) {
         </div>
 
         {items.map((item,idx)=>(
-          <div key={item.id} style={{display:'grid',gridTemplateColumns:'1fr 110px 130px 28px',gap:8,marginBottom:8,alignItems:'center'}}>
+          <div key={item.id} className="rg-credit-item" style={{marginBottom:8}}>
             <input className="form-input" style={{margin:0}} value={item.name}
               onChange={e=>setItem(item.id,'name',e.target.value)}
               placeholder={`Item ${idx+1} name…`}/>
@@ -399,7 +399,7 @@ function BillViewModal({credit, onClose}) {
         <button className="btn-outline" onClick={()=>printBill(credit)}>🖨 Print / Save PDF</button>
         <button className="btn-primary"  onClick={onClose}>Close</button>
       </>}>
-      <div style={{background:'#f8fafc',borderRadius:10,padding:'12px 16px',marginBottom:16,fontSize:13,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+      <div className="rg-2col-10" style={{background:'#f8fafc',borderRadius:10,padding:'12px 16px',marginBottom:16,fontSize:13}}>
         <div><span style={{color:'#94a3b8'}}>Shop: </span><strong>{credit.shopName}</strong></div>
         <div><span style={{color:'#94a3b8'}}>Shopkeeper: </span><strong>{credit.shopkeeperName}</strong></div>
         <div><span style={{color:'#94a3b8'}}>Date: </span><strong>{fmtDate(credit.date)}</strong></div>
@@ -493,7 +493,7 @@ function WholesaleCredit() {
   const arr = Array.isArray(credits) ? credits : [];
 
   return (
-    <div style={{padding:'20px 24px'}}>
+    <div className="page-pad">
       {/* Toast */}
       {toast && <div style={{position:'fixed',top:20,right:24,zIndex:9999,background:'#1e293b',color:'white',
         padding:'10px 20px',borderRadius:10,fontWeight:600,fontSize:13,boxShadow:'0 4px 20px rgba(0,0,0,.2)'}}>{toast}</div>}
@@ -941,7 +941,7 @@ function SupplierHistoryModal({ supplierId, records, onClose }) {
         </div>
 
         {/* Meta — uses LATEST record values, not sum */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,
+        <div className="rg-credit-stats" style={{
           background:'#f8fafc',borderRadius:8,padding:'12px 16px',marginBottom:16,fontSize:13}}>
           {[
             {l:'Supplier Name',   v:supplier.supplierName||'', c:undefined},
@@ -1180,7 +1180,7 @@ function PayNowModal({ records, onClose, onSaved, showToast }) {
             borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 13 }}>{error}</div>}
 
           {/* Form grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="rg-credit-form">
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label">WHOLESALER ID *</label>
               <input className="form-input" style={{ margin: 0 }} value={supplierId}
