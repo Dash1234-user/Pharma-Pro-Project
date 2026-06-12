@@ -132,7 +132,7 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Low stock sidebar */}
+        /* Low stock sidebar */}
         <div className="card" style={{padding:0,overflow:'hidden'}}>
           <div style={{padding:'14px 16px',borderBottom:'1px solid var(--border)',fontWeight:700,fontSize:13}}>⚠ Low Stock</div>
           <div id="dash-low-stock" style={{maxHeight:280,overflowY:'auto'}}>
