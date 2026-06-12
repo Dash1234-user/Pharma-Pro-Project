@@ -69,7 +69,7 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div style={{ padding:'20px 24px', display:'grid', gridTemplateColumns:'1fr 340px', gap:20, alignItems:'start' }}>
+    <div className="page-pad rg-main-side-340">
 
       {/* ── LEFT: Manage Categories ────────────────────────────────────── */}
       <div className="card" style={{ padding:'20px' }}>
