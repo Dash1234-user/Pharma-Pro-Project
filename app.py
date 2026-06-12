@@ -1,7 +1,6 @@
 """
 PharmaCare Pro — Flask + PostgreSQL Backend  (Partition Edition)
 ============================================================
-Drop this file in the SAME folder as index.html, app.js, styles.css.
 
 Install & Run:
     pip install flask flask-cors
