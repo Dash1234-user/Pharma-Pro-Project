@@ -397,7 +397,6 @@ function BillViewModal({credit, onClose}) {
     <Modal title={`Credit Bill — ${credit.shopName}`} onClose={onClose} wide
       footer={<>
         <button className="btn-outline" onClick={()=>printBill(credit)}>🖨 Print / Save PDF</button>
-        <button className="btn-primary"  onClick={onClose}>Close</button>
       </>}>
       <div className="rg-2col-10" style={{background:'#f8fafc',borderRadius:10,padding:'12px 16px',marginBottom:16,fontSize:13}}>
         <div><span style={{color:'#94a3b8'}}>Shop: </span><strong>{credit.shopName}</strong></div>
