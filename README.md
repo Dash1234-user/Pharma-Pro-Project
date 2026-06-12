@@ -281,22 +281,6 @@ npm run build
 ```
 VITE_API_URL = https://pharma-pro-project.onrender.com/api
 ```
-
----
-
-## 👥 Team
-
-| Name | Role |
-|---|---|
-| **Ashutosh Mahapatra** | Full Stack Developer |
-| **Amit Kumar Dash** | Developer |
-| **Ajit Kumar Sahu** | Developer |
-| **Ajit Pradhan** | Developer |
-
-**Guide:** Prof. Geetanjali Sahu  
-**Institution:** Roland Institute of Technology (2023–2027)  
-**Subject:** Academic Minor Project
-
 ---
 
 ## 📄 License
