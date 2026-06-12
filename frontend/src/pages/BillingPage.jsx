@@ -806,7 +806,7 @@ export default function BillingPage() {
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding:'20px 24px', display:'grid', gridTemplateColumns:'1fr 300px', gap:20, alignItems:'start' }}>
+    <div className="page-pad rg-billing">
 
       {/* ── LEFT: Bill Form ──────────────────────────────────────────────── */}
       <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -824,7 +824,7 @@ export default function BillingPage() {
 
           {isWholesale ? (
             // ── Wholesale Fields ───────────────────────────────────────────
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div className="rg-bill-header">
               <div className="form-group">
                 <label className="form-label">SHOP / RETAIL NAME *</label>
                 <input className="form-input" placeholder="Retailer's shop name"
@@ -865,7 +865,7 @@ export default function BillingPage() {
             </div>
           ) : (
             // ── Retail Fields ──────────────────────────────────────────────
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div className="rg-bill-header">
               <div className="form-group">
                 <label className="form-label">CUSTOMER NAME</label>
                 <input className="form-input" placeholder="Customer / Walk-in"
@@ -907,7 +907,7 @@ export default function BillingPage() {
           <h3 style={{ fontSize:15, fontWeight:800, color:'var(--text)', margin:'0 0 14px' }}>Add Medicines</h3>
 
           {/* Search row */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:10, marginBottom:10 }}>
+          <div className="rg-bill-add">
             <div style={{ position:'relative' }}>
               <label className="form-label">SEARCH MEDICINE</label>
               <input ref={searchRef} className="form-input" placeholder="Type to search…"
@@ -948,7 +948,7 @@ export default function BillingPage() {
           </div>
 
           {/* Price & Discount row */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+          <div className="rg-2col-10" style={{ marginBottom:10 }}>
             <div>
               <label className="form-label">PRICE ₹</label>
               <input className="form-input" type="number" min="0" step="0.01"
@@ -1033,7 +1033,7 @@ export default function BillingPage() {
       </div>
 
       {/* ── RIGHT: Summary + QR ──────────────────────────────────────────── */}
-      <div style={{ display:'flex', flexDirection:'column', gap:16, position:'sticky', top:80 }}>
+      <div className="sticky-side" style={{ display:'flex', flexDirection:'column', gap:16, position:'sticky', top:80 }}>
 
         {/* Bill Summary */}
         <div className="card" style={{ padding:20 }}>
