@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, Doughnut,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
-} from 'recharts';
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
+} 
+from 'recharts';
 import client from '../api/client';
 import useSettingsStore from '../store/settingsStore';
 
@@ -72,7 +72,7 @@ export default function AnalysisPage() {
   const weekData = weekP.map((v,i)=>({name:`Week ${i+1}`,profit:v}));
 
   return (
-    <div style={{padding:'20px 24px'}}>
+    <div className="page-pad">
 
       {/* Period tabs */}
       <div style={{display:'flex',gap:6,marginBottom:16}}>
@@ -111,7 +111,7 @@ export default function AnalysisPage() {
       {isLoading && <div style={{padding:32,textAlign:'center',color:'#94a3b8'}}>Loading analysis…</div>}
 
       {/* Row 1: Daily Revenue line + Category doughnut */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:20}}>
+      <div className="rg-analysis-2">
         <ChartCard title={isWS?'Daily Wholesale Revenue':'Daily Revenue'} height={260}>
           {revData.length===0 ? <EmptyChart/>
           : <ResponsiveContainer width="100%" height="100%">
@@ -141,7 +141,7 @@ export default function AnalysisPage() {
       </div>
 
       {/* Row 2: Top Products bar + Payment Mode pie */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:20}}>
+      <div className="rg-analysis-2">
         <ChartCard title={isWS?'Top Products by Volume':'Top Medicines'} height={Math.max(260,topBar.length*44)}>
           {topBar.length===0 ? <EmptyChart/>
           : <ResponsiveContainer width="100%" height="100%">
@@ -173,7 +173,7 @@ export default function AnalysisPage() {
 
       {/* Wholesale-only: Top Customers + Strip Sales */}
       {isWS && (
-        <div id="analysis-wholesale-extra" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:20}}>
+        <div id="analysis-wholesale-extra" className="rg-analysis-2">
           <ChartCard title="🏪 Top Customers / Retailers" subtitle="Revenue contribution by retailer in the selected period"
             height={Math.max(260,custData.length*44)}>
             {custData.length===0 ? <EmptyChart/>
