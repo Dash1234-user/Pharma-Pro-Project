@@ -142,7 +142,7 @@ function ProductModal({isWS,categories,editProduct,defaultGst,lowStockThreshold,
         <button className="btn-primary" onClick={save} disabled={saving}>{saving?'Saving…':isEdit?'✓ Update':'✓ Save Medicine'}</button>
       </>}>
       {error&&<div style={{background:'#fef2f2',border:'1px solid #fecaca',color:'#dc2626',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:13}}>{error}</div>}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <div className="rg-products-form">
         <div style={{gridColumn:'1/-1'}}>{fg('MEDICINE NAME *',inp(name,setName,{placeholder:'e.g. Paracetamol 500mg Tab'}))}</div>
         {fg('CATEGORY *',<select className="form-input" value={cat} onChange={e=>setCat(e.target.value)}><option value="">Select Category</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>)}
         {fg('FORM',<select className="form-input" value={unit} onChange={e=>setUnit(e.target.value)}>{['Tablet','Capsule','Syrup','Injection','Cream','Ointment','Drops','Inhaler','Powder','Bottle','Sachet','Strip','Gel','Spray','Suspension','Other'].map(u=><option key={u}>{u}</option>)}</select>)}
@@ -264,7 +264,7 @@ export default function ProductsPage() {
   });
 
   return (
-    <div style={{padding:'20px 24px'}}>
+    <div className="page-pad">
       {toast&&<div style={{position:'fixed',top:20,right:24,zIndex:9999,background:'#1e293b',color:'white',padding:'10px 20px',borderRadius:10,fontWeight:600,fontSize:13,boxShadow:'0 4px 20px rgba(0,0,0,.2)'}}>{toast}</div>}
       {showModal&&<ProductModal isWS={isWS} categories={categories} editProduct={editProd} defaultGst={defaultGst} lowStockThreshold={lowStockThreshold} onClose={()=>setShowModal(false)} onSaved={onSaved}/>}
       {adjProd&&<StockAdjModal product={adjProd} onClose={()=>setAdjProd(null)} onSaved={()=>{qc.invalidateQueries({queryKey:['products']});showT('Stock updated ✓');}}/>}
