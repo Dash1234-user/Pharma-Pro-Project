@@ -235,8 +235,8 @@ export default function SettingsPage() {
   );
 
   return (
-    <div style={{ padding:'20px 24px' }}>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:24, alignItems:'start' }}>
+    <div className="page-pad">
+      <div className="rg-settings">
 
         {/* ── LEFT: Pharmacy Identity ────────────────────────────── */}
         <div className="card settings-left-card" style={{ padding:'24px' }}>
@@ -337,7 +337,7 @@ export default function SettingsPage() {
           </>}
 
           {/* ── Preferences ────────────────────────────────────────────── */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+          <div className="rg-settings-form">
             <div className="form-group">
               <label className="form-label" htmlFor="set-gst">GST %</label>
               <input id="set-gst" className="form-input" type="number"
