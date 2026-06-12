@@ -77,7 +77,7 @@ function PurchaseEditModal({record, onClose, onSaved}) {
         </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <div className="rg-stockin-form" style={{marginBottom:12}}>
         <div className="form-group">
           <label className="form-label">ORDER / INVOICE NO.</label>
           <input className="form-input" value={orderNo} onChange={e=>setOrderNo(e.target.value)} placeholder="e.g. INV-2024-001"/>
@@ -249,7 +249,7 @@ function WholesaleStockIn({products, toast}) {
           <input className="form-input" value={medName} onChange={e=>setMedName(e.target.value)} placeholder="e.g. Paracetamol 500mg, Azithromycin 250mg…"/>
         </div>
 
-        <div style={{display:'grid',gridTemplateColumns:'1fr 120px 1fr',gap:12,marginBottom:12}}>
+        <div className="rg-stock-add">
           <div className="form-group">
             <label className="form-label">QUANTITY *</label>
             <input className="form-input" type="number" min="0" value={qty} onChange={e=>setQty(e.target.value)} placeholder="0"/>
@@ -265,7 +265,7 @@ function WholesaleStockIn({products, toast}) {
           </div>
         </div>
 
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+        <div className="rg-stockin-form">
           <div className="form-group">
             <label className="form-label">SUPPLIER / MANUFACTURER / DISTRIBUTOR NAME *</label>
             <input className="form-input" value={party} onChange={e=>setParty(e.target.value)} placeholder="e.g. Sun Pharma, ABC Distributors…"/>
@@ -436,7 +436,7 @@ function RetailStockIn({products, toast}) {
 
   return (
     <>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 400px',gap:20,alignItems:'start',marginBottom:24}}>
+      <div className="rg-main-side-400">
 
         {/* Add form */}
         <div className="card">
@@ -469,7 +469,7 @@ function RetailStockIn({products, toast}) {
             )}
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+          <div className="rg-stockin-form">
             <div className="form-group">
               <label className="form-label">QUANTITY *</label>
               <input className="form-input" type="number" min="1" value={qty} onChange={e=>setQty(e.target.value)} placeholder="0"/>
@@ -571,7 +571,7 @@ export default function StockInPage() {
   function showToast(msg){setToastMsg(msg);setTimeout(()=>setToastMsg(''),3000);}
 
   return (
-    <div style={{padding:'20px 24px'}}>
+    <div className="page-pad">
       {toastMsg&&(
         <div style={{position:'fixed',top:20,right:24,zIndex:9999,background:'#1e293b',color:'white',padding:'10px 20px',borderRadius:10,fontWeight:600,fontSize:13,boxShadow:'0 4px 20px rgba(0,0,0,.2)'}}>
           {toastMsg}
