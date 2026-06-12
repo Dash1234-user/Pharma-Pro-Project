@@ -7,9 +7,6 @@
 
 > **A full-stack pharmacy management web application** built for both Wholesale and Retail pharmacies — featuring billing, inventory, credit management, expiry tracking, sales analytics, and more.
 
-**Live Demo:** [pharma-pro-project-1.onrender.com](https://pharma-pro-project-1.onrender.com)  
-**API Backend:** [pharma-pro-project.onrender.com](https://pharma-pro-project.onrender.com)
-
 ---
 
 ## 🏗️ Tech Stack
