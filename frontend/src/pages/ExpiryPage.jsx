@@ -100,7 +100,7 @@ export default function ExpiryPage() {
   if (isError)   return <div style={{ padding:32, textAlign:'center', color:'#ef4444' }}>Failed to load expiry data.</div>;
 
   return (
-    <div style={{ padding:'20px 24px' }}>
+    <div className="page-pad">
 
       {/* Stat cards */}
       <div id="expiry-stats" className="stats-grid" style={{ marginBottom:20 }}>
