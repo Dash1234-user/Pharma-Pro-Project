@@ -285,4 +285,4 @@ VITE_API_URL = https://pharma-pro-project.onrender.com/api
 
 ## 📄 License
 
-Academic project — Roland Institute of Technology. Not licensed for commercial use.
+Not licensed for commercial use.
