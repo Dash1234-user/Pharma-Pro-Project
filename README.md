@@ -2,7 +2,7 @@
   ### Academic minor project (On Development) ###
  #### - <i> Building a multi-user SaaS-style pharmacy system deployed on cloud (Render) </i> ####
 #### - <i> Currently evolving from a working prototype toward a production-ready SaaS product </i> ####
-  
+
 # 💊 PharmaCare Pro
 
 > **A full-stack pharmacy management web application** built for both Wholesale and Retail pharmacies — featuring billing, inventory, credit management, expiry tracking, sales analytics, and more.
@@ -282,6 +282,19 @@ npm run build
 VITE_API_URL = https://pharma-pro-project.onrender.com/api
 ```
 ---
+
+**Credintials for Exploring Website:** 
+--------------------------------------
+
+***(Wholesaler Pharma) :***
+GSTIN : 27ABCEF1234F1Z0
+
+***(Retail Pharma) :***
+GSTIN : 27ABCEF1234F2Z4
+
+(***MAIL ME FOR PASSWORD***)
+
+--------------------------------------
 
 ## 📄 License
 
