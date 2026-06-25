@@ -6,14 +6,14 @@ import useSettingsStore from '../store/settingsStore';
 // ── Page metadata — mirrors PAGE_META in app.js exactly ──────────────────────
 const PAGE_META = {
   '/':           { title: 'Dashboard',      sub: 'Pharmacy overview at a glance',          action: '⟳ Reset Dashboard' },
-  '/products':   { title: 'Inventory',      sub: 'Manage your medicine inventory',         action: '+ Add Medicine'    },
+  '/products':   { title: 'Inventory',      sub: 'Manage your medicine inventory',         action: ''                  },
   '/stock-in':   { title: 'Stock Details',  sub: 'Track stock entries & purchase records', action: ''                  },
-  '/billing':    { title: 'Billing',        sub: 'Create a new prescription bill',         action: '🖨 Print Last'     },
-  '/history':    { title: 'Sales History',  sub: 'All past transactions',                  action: 'Export CSV'        },
-  '/credit':     { title: 'Credit',         sub: 'Amount Due / Pending Payments',          action: '+ Add Receipt'     },
+  '/billing':    { title: 'Billing',        sub: 'Create a new prescription bill',         action: ''                  },
+  '/history':    { title: 'Sales History',  sub: 'All past transactions',                  action: ''                  },
+  '/credit':     { title: 'Credit',         sub: 'Amount Due / Pending Payments',          action: ''                  },
   '/analysis':   { title: 'Sales Analysis', sub: 'Performance insights & trends',          action: 'Export CSV'        },
-  '/expiry':     { title: 'Expiry Tracker', sub: 'Monitor expiring medicines',             action: '+ Add Medicine'    },
-  '/categories': { title: 'Categories',     sub: 'Manage medicine categories',             action: '+ Add Category'    },
+  '/expiry':     { title: 'Expiry Tracker', sub: 'Monitor expiring medicines',             action: ''                  },
+  '/categories': { title: 'Categories',     sub: 'Manage medicine categories',             action: ''                  },
   '/purchases':  { title: 'Purchase Records',sub:'Supplier orders & delivery tracking',    action: '+ Add Record'      },
   '/settings':   { title: 'Settings',       sub: 'Pharmacy configuration',                 action: 'Save Settings'     },
 };
